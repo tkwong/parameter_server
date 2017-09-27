@@ -18,6 +18,28 @@ AbstractModel* ServerThread::GetModel(uint32_t model_id) {
 }
 
 void ServerThread::Main() {
+  while(true)
+	{
+	  Message msg;
+		work_queue_.WaitAndPop(&msg);
+		
+		if(msg.meta.flag == Flag::kExit) break;
+
+		AbstractModel* model = GetModel(msg.meta.model_id);
+		if (model == nullptr) continue; //Skip this message if the model_id does not exist.
+		
+		switch(msg.meta.flag)
+		{
+			case Flag::kClock:
+				model->Clock(msg);
+				break;
+			case Flag::kAdd:
+				model->Add(msg);
+				break;
+			case Flag::kGet:
+				model->Get(msg);
+				break;
+		}
 }
 
 }  // namespace csci5570
