@@ -21,9 +21,9 @@ void ServerThread::Main() {
   while(true){
     Message msg;
     work_queue_.WaitAndPop(&msg);
-    
+
     if(msg.meta.flag == Flag::kExit) break;
-    
+
     AbstractModel* model = GetModel(msg.meta.model_id);
     if (model == nullptr) continue; //Skip this message if the model_id does not exist.
 
@@ -38,7 +38,7 @@ void ServerThread::Main() {
         model->Get(msg);
         break;
     }
+  }
 }
-
 }  // namespace csci5570
 
