@@ -7,36 +7,36 @@
 namespace csci5570 {
 namespace {
 
-class TestPartitionManager : public testing::Test {
+class TestRangePartitionManager : public testing::Test {
     public:
-        TestPartitionManager() {}
-        ~TestPartitionManager() {}
+        TestRangePartitionManager() {}
+        ~TestRangePartitionManager() {}
     
     protected:
         void SetUp() {}
         void TearDown() {}
 };
 
-TEST_F(TestPartitionManager, Construct) {
+TEST_F(TestRangePartitionManager, Construct) {
     std::vector<uint32_t> vec({0,1});
     RangePartitionManager pm(vec);
 }
 
-TEST_F(TestPartitionManager, GetNumServers) {
+TEST_F(TestRangePartitionManager, GetNumServers) {
     std::vector<uint32_t> vec({0,1});
     RangePartitionManager pm(vec);
     
     EXPECT_EQ(pm.GetNumServers(), 2);
 }
 
-TEST_F(TestPartitionManager, GetServerThreadIds) {
+TEST_F(TestRangePartitionManager, GetServerThreadIds) {
     std::vector<uint32_t> vec({0,1});
     RangePartitionManager pm(vec);
     
     EXPECT_EQ(pm.GetServerThreadIds(), vec);
 }
 
-TEST_F(TestPartitionManager, SliceKeys) {
+TEST_F(TestRangePartitionManager, SliceKeys) {
     using Keys = third_party::SArray<Key>;
 
     std::vector<uint32_t> in_ids({0,1});
@@ -69,7 +69,7 @@ TEST_F(TestPartitionManager, SliceKeys) {
         EXPECT_EQ(in_keys[i], out_keys[i]);
 }
 
-TEST_F(TestPartitionManager, SliceKeyValuePairs) {
+TEST_F(TestRangePartitionManager, SliceKeyValuePairs) {
     using KVPairs = std::pair<third_party::SArray<Key>, third_party::SArray<double>>;
     
     std::vector<uint32_t> in_ids({0,1});
@@ -112,7 +112,7 @@ TEST_F(TestPartitionManager, SliceKeyValuePairs) {
     }
 }
 
-TEST_F(TestPartitionManager, SliceKeysAndKeyValuePairs) {
+TEST_F(TestRangePartitionManager, SliceKeysAndKeyValuePairs) {
     using Keys = third_party::SArray<Key>;
     using KVPairs = std::pair<third_party::SArray<Key>, third_party::SArray<double>>;
     
