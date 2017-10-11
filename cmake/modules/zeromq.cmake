@@ -78,7 +78,7 @@ else(ZMQ_FOUND)
         if(WIN32)
             set(ZMQ_LIBRARY "${PROJECT_BINARY_DIR}/lib/libzmq.lib")
         else(WIN32)
-            set(ZMQ_LIBRARY "${PROJECT_BINARY_DIR}/lib/libzmq.so")
+            set(ZMQ_LIBRARY "${PROJECT_BINARY_DIR}/lib/libzmq-static.a")
         endif(WIN32)
     endif(NOT ZMQ_LIBRARY)
 
