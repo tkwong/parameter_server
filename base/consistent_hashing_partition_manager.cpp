@@ -18,7 +18,7 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 
         const std::vector<uint32_t>& GetServerThreadIds() const { return server_thread_ids_; }
 
-        void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) {
+        void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) override{
 
             CHECK(!hash_ring_.empty());
 
@@ -47,12 +47,16 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 
             }
         }
-
-        void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) {
+		
+        void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) override{
             CHECK(!hash_ring_.empty());
             sliced->clear();
-            for (auto key : kvs.first){
-
+			
+			for (auto i = 0 ; i < kvs.first.size(); i++){
+            // for (auto key : kvs.first){
+			  auto key = kvs.first[i];
+			  auto val = kvs.second[i];
+				
               // Use Key_{id} as the hash value for choosing node_id
               std::string vkey_name = "Key_" + std::to_string(key);
               std::size_t hash_value = std::hash<std::string>{}(vkey_name);
@@ -62,9 +66,27 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
               if (iter == hash_ring_.end()) {
                 iter = hash_ring_.begin();
               }
-              LOG(INFO) << "Key: "<< key << ", Node ID:" << iter->second << " Hash:(" << hash_value << ")";
-			  sliced->push_back(std::make_pair(iter->second, KVPairs(key,kvs.first[key])));
-
+			  auto node_id = iter->second;
+			  
+              LOG(INFO) << "Key: "<< key << ", Val:" << val << ", Node ID:" << node_id << " Hash:(" << hash_value << ")";
+			  
+			  // FIXME: any other function that can make it faster? any_of is O(nlog n)
+			  // check whether the key exist in the sliced, 
+			  
+			  // [ ( 0, ([0,1], [.0,.1] ) ) ]
+			  if (std::any_of(sliced->begin(), sliced->end(), [node_id](std::pair<int, KVPairs> ele) {return (ele.first == node_id);})){
+	  				  third_party::SArray<Key> keys({key});
+	  				  third_party::SArray<double> vals({val});
+					  sliced->at(node_id).second.first.append(keys);
+					  sliced->at(node_id).second.second.append(vals);
+			  } else {
+				  
+  				  third_party::SArray<Key> keys({key});
+  				  third_party::SArray<double> vals({val});
+				  
+			      sliced->push_back(std::make_pair(node_id, std::make_pair(keys, vals) ));
+			  }
+			  
             }
         }
 
