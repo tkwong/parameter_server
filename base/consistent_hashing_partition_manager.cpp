@@ -22,7 +22,11 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
             CHECK(!hash_ring_.empty());
 
             sliced->clear();
-
+			
+			// FIXME: is it good for using map instead of vecotr? as we need to do a key search and append keys to different server_id
+			// map.find gives O(log n) but vector need to O(n)
+			std::map<int, Keys> results;
+			
             for (auto key : keys){
 
               // Use Key_{id} as the hash value for choosing node_id
@@ -34,9 +38,21 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
               if (iter == hash_ring_.end()) {
                 iter = hash_ring_.begin();
               }
-              LOG(INFO) << "Key: "<< key << ", Node ID:" << iter->second << " Hash:(" << hash_value << ")";
-              sliced->push_back(std::make_pair(iter->second, Keys(key)));
+              
+			  LOG(INFO) << "Key: "<< key << ", Node ID:" << iter->second << " Hash:(" << hash_value << ")";
+			  			  
+			  if (results.find(iter->second) != results.end()){
+				  results[iter->second].append(Keys({key}));
+			  } else {
+				  results[iter->second] = Keys({key});
+			  }
+
             }
+			// FIXME: now loop all server count and return the vector.. any other way to make it faster?
+			for (auto r : results) {
+				sliced->push_back(std::make_pair(r.first, r.second));				
+			}
+
         }
 
         void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) {
