@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base/abstract_partition_manager.hpp"
+#include <algorithm>
 
 namespace csci5570 {
 
@@ -23,10 +24,6 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 
             sliced->clear();
 			
-			// FIXME: is it good for using map instead of vecotr? as we need to do a key search and append keys to different server_id
-			// map.find gives O(log n) but vector need to O(n)
-			std::map<int, Keys> results;
-			
             for (auto key : keys){
 
               // Use Key_{id} as the hash value for choosing node_id
@@ -40,19 +37,15 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
               }
               
 			  LOG(INFO) << "Key: "<< key << ", Node ID:" << iter->second << " Hash:(" << hash_value << ")";
-			  			  
-			  if (results.find(iter->second) != results.end()){
-				  results[iter->second].append(Keys({key}));
+			  
+			  // FIXME: any other function that can make it faster? any_of is O(log n)
+			  if (std::any_of(sliced->begin(), sliced->end(), [&iter](std::pair<int, Keys> ele) {return (ele.first == iter->second);} )){
+				sliced->at(iter->second).second.append(Keys({key}));
 			  } else {
-				  results[iter->second] = Keys({key});
+			  	sliced->push_back(std::make_pair(iter->second, Keys({key})));				
 			  }
 
             }
-			// FIXME: now loop all server count and return the vector.. any other way to make it faster?
-			for (auto r : results) {
-				sliced->push_back(std::make_pair(r.first, r.second));				
-			}
-
         }
 
         void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) {
@@ -70,7 +63,8 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
                 iter = hash_ring_.begin();
               }
               LOG(INFO) << "Key: "<< key << ", Node ID:" << iter->second << " Hash:(" << hash_value << ")";
-              sliced->push_back(std::make_pair(iter->second, KVPairs(key,kvs.first[key])));
+			  sliced->push_back(std::make_pair(iter->second, KVPairs(key,kvs.first[key])));
+
             }
         }
 

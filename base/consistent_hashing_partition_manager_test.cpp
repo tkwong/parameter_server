@@ -61,6 +61,31 @@ TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
 
 }
 
+TEST_F(TestConsistentHashingPartitionManager, SliceKVs) {
+  ConsistentHashingPartitionManager pm({0, 1, 2});
+  third_party::SArray<Key> keys({2, 5, 9});
+  third_party::SArray<double> vals({.2, .5, .9});
+  std::vector<std::pair<int, AbstractPartitionManager::KVPairs>> sliced;
+  pm.Slice(std::make_pair(keys, vals), &sliced);
+
+  ASSERT_EQ(sliced.size(), 3);  // 3 slices for 3 servers
+  EXPECT_EQ(sliced[0].first, 0);
+  EXPECT_EQ(sliced[1].first, 1);
+  EXPECT_EQ(sliced[2].first, 2);
+  ASSERT_EQ(sliced[0].second.first.size(), 1);  // key 2
+  EXPECT_EQ(sliced[0].second.first[0], 2);
+  ASSERT_EQ(sliced[0].second.second.size(), 1);  // value .2
+  EXPECT_DOUBLE_EQ(sliced[0].second.second[0], .2);
+  ASSERT_EQ(sliced[1].second.first.size(), 1);  // key 5
+  EXPECT_EQ(sliced[1].second.first[0], 5);
+  ASSERT_EQ(sliced[1].second.second.size(), 1);  // value .5
+  EXPECT_DOUBLE_EQ(sliced[1].second.second[0], .5);
+  ASSERT_EQ(sliced[2].second.first.size(), 1);  // key 9
+  EXPECT_EQ(sliced[2].second.first[0], 9);
+  ASSERT_EQ(sliced[2].second.second.size(), 1);  // value .9
+  EXPECT_DOUBLE_EQ(sliced[2].second.second[0], .9);
+}
+
 TEST_F(TestConsistentHashingPartitionManager, SliceKeysIfNodeDeleted) {GTEST_FAIL();}
 TEST_F(TestConsistentHashingPartitionManager, SliceKeysIfNodeAdded) {GTEST_FAIL();}
 TEST_F(TestConsistentHashingPartitionManager, SliceKeyValuePairs) {GTEST_FAIL();}
