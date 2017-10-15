@@ -21,6 +21,8 @@ namespace csci5570 {
 template <typename Val>
 class KVClientTable {
  public:
+  using Keys = third_party::SArray<Key>;
+  using KVPairs = std::pair<third_party::SArray<Key>, third_party::SArray<double>>;
   /**
    * @param app_thread_id       user thread id
    * @param model_id            model id
@@ -29,7 +31,7 @@ class KVClientTable {
    * @param callback_runner     callback runner to handle received replies from servers
    */
   KVClientTable(uint32_t app_thread_id, uint32_t model_id, ThreadsafeQueue<Message>* const sender_queue,
-                const AbstractPartitionManager* const partition_manager, AbstractCallbackRunner* const callback_runner)
+                AbstractPartitionManager* const partition_manager, AbstractCallbackRunner* const callback_runner)
       : app_thread_id_(app_thread_id),
         model_id_(model_id),
         sender_queue_(sender_queue),
@@ -38,12 +40,87 @@ class KVClientTable {
 
   // ========== API ========== //
   void Clock();
+  
   // vector version
-  void Add(const std::vector<Key>& keys, const std::vector<Val>& vals) {}
-  void Get(const std::vector<Key>& keys, std::vector<Val>* vals) {}
+  void Add(const std::vector<Key>& keys, const std::vector<Val>& vals) 
+  {
+    Add(Keys(keys), third_party::SArray<Val>(vals)); // call the sarray version of Add()
+  }
+  
+  void Get(const std::vector<Key>& keys, std::vector<Val>* vals) 
+  {
+    third_party::SArray<Val> result;
+    Get(Keys(keys), &result); // call the sarray version of Get()
+
+    vals->clear();
+    for (auto it=result.begin(); it!=result.end(); it++) vals->push_back(*it);
+  }
+  
   // sarray version
-  void Add(const third_party::SArray<Key>& keys, const third_party::SArray<Val>& vals) {}
-  void Get(const third_party::SArray<Key>& keys, third_party::SArray<Val>* vals) {}
+  void Add(const third_party::SArray<Key>& keys, const third_party::SArray<Val>& vals) 
+  {
+    // Partition Manager takes in doubles for values, so first cast to doubles
+    third_party::SArray<double> double_vals;
+    for (int i=0; i<vals.size(); i++) double_vals.push_back(static_cast<double>(vals[i]));
+
+    std::vector<std::pair<int, KVPairs>> sliced;
+    partition_manager_->Slice(std::make_pair(keys, double_vals), &sliced);
+    
+    // Send Message to each server
+    for (auto it=sliced.begin(); it!=sliced.end(); it++)
+    {
+        third_party::SArray<Val> v;
+        for (auto vit=it->second.second.begin(); vit!=it->second.second.end(); vit++)
+            v.push_back(static_cast<Val>(*vit));
+    
+        Message msg;
+        msg.meta.sender = app_thread_id_;
+        msg.meta.recver = it->first;
+        msg.meta.model_id = model_id_;
+        msg.meta.flag = Flag::kAdd;
+        
+        msg.AddData(it->second.first);
+        msg.AddData(v);
+        
+        sender_queue_->Push(msg);
+    }
+  }
+  
+  void Get(const third_party::SArray<Key>& keys, third_party::SArray<Val>* vals) 
+  {
+    std::vector<std::pair<int, Keys>> sliced;
+    partition_manager_->Slice(keys, &sliced);
+    
+    std::map<Key,Val> reply;
+    
+    // The callback will add the key-value pairs in the reply messages into a map
+    callback_runner_->RegisterRecvHandle(app_thread_id_, model_id_,[&reply](Message& msg){
+        auto re_keys = third_party::SArray<Key>(msg.data[0]);
+        auto re_vals = third_party::SArray<Val>(msg.data[1]);
+
+        for (int i=0; i<re_keys.size(); i++) reply.insert(std::make_pair(re_keys[i], re_vals[i]));
+    });
+    callback_runner_->RegisterRecvFinishHandle(app_thread_id_, model_id_, []{});
+    callback_runner_->NewRequest(app_thread_id_, model_id_, sliced.size());
+    
+    // Send request to each server
+    for (auto it=sliced.begin(); it!=sliced.end(); it++)
+    {
+        Message msg;
+        msg.meta.sender = app_thread_id_;
+        msg.meta.recver = it->first;
+        msg.meta.model_id = model_id_;
+        msg.meta.flag = Flag::kGet;
+        
+        msg.AddData(it->second);
+        
+        sender_queue_->Push(msg);
+    }
+    
+    callback_runner_->WaitRequest(app_thread_id_, model_id_);
+    vals->clear();
+    for (auto it=reply.begin(); it!=reply.end(); it++) vals->push_back(it->second);
+  }
   // ========== API ========== //
 
  private:
@@ -52,7 +129,7 @@ class KVClientTable {
 
   ThreadsafeQueue<Message>* const sender_queue_;             // not owned
   AbstractCallbackRunner* const callback_runner_;            // not owned
-  const AbstractPartitionManager* const partition_manager_;  // not owned
+  AbstractPartitionManager* const partition_manager_;  // not owned
 
 };  // class KVClientTable
 

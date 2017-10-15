@@ -122,8 +122,6 @@ TEST_F(TestKVClientTable, Init) {
 }
 
 TEST_F(TestKVClientTable, Add) {
-  // FIXME: Now default fail!
-  GTEST_FAIL();
   ThreadsafeQueue<Message> queue;
   FakePartitionManager manager({0, 1}, 4);
   FakeCallbackRunner callback_runner;
@@ -168,8 +166,6 @@ TEST_F(TestKVClientTable, Add) {
 }
 
 TEST_F(TestKVClientTable, Get) {
-  // FIXME: Now default fail!
-  GTEST_FAIL();
   ThreadsafeQueue<Message> queue;
   FakePartitionManager manager({0, 1}, 4);
   FakeCallbackRunner callback_runner;
