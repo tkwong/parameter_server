@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base/range_partition_manager.cpp"
+#include "base/range_partition_manager.hpp"
 #include "server/map_storage.hpp"
 #include "server/server_thread.cpp"
 
@@ -25,7 +25,7 @@ class SimpleServer {
     public:
         SimpleServer(int thread_num)
         {
-            std::vector<uint32_t> ids;
+            /*std::vector<uint32_t> ids;
             for (int i=0; i<thread_num; i++) ids.push_back(i);
             pm = new RangePartitionManager(ids);
             
@@ -37,7 +37,7 @@ class SimpleServer {
                 auto thread = new ServerThread(*it);
                 thread->RegisterModel(0, std::move(model));
                 threads.insert(std::make_pair(*it, thread));
-            }
+            }*/
         }
         
         ThreadsafeQueue<Message>* getReplyQueue() {return &reply_q;}
