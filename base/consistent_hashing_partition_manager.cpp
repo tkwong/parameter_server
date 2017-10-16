@@ -2,115 +2,89 @@
 
 #include "base/abstract_partition_manager.hpp"
 #include <algorithm>
+#include "glog/logging.h"
 
 namespace csci5570 {
 
 class ConsistentHashingPartitionManager : public AbstractPartitionManager {
     public:
         ConsistentHashingPartitionManager(const std::vector<uint32_t>& ids) :
-            AbstractPartitionManager(ids) {
-              for (auto id : ids){
-                AddNode(id);
-              }
-            }
+            AbstractPartitionManager(ids) {}
 
         size_t GetNumServers() const { return server_thread_ids_.size(); }
 
         const std::vector<uint32_t>& GetServerThreadIds() const { return server_thread_ids_; }
 
-        void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) override{
+		void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) override{
 
-            CHECK(!hash_ring_.empty());
-
-            sliced->clear();
+			sliced->clear();
 			
-            for (auto key : keys){
-
-              // Use Key_{id} as the hash value for choosing node_id
-              std::string vkey_name = "Key_" + std::to_string(key);
-              std::size_t hash_value = std::hash<std::string>{}(vkey_name);
-
-              // always use upper_bound for searching the node_id, so that when any node removed, the partiation should not change too much.
-              auto iter = hash_ring_.upper_bound(hash_value);
-              if (iter == hash_ring_.end()) {
-                iter = hash_ring_.begin();
-              }
-              
-			  LOG(INFO) << "Key: "<< key << ", Node ID:" << iter->second << " Hash:(" << hash_value << ")";
+			for (auto key : keys){
+				
+				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
+				auto node_id = server_thread_ids_.at(JumpConsistentHash(key, server_thread_ids_.size()));
+				DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 			  
-			  // FIXME: any other function that can make it faster? any_of is O(log n)
-			  if (std::any_of(sliced->begin(), sliced->end(), [&iter](std::pair<int, Keys> ele) {return (ele.first == iter->second);} )){
-				sliced->at(iter->second).second.append(Keys({key}));
-			  } else {
-			  	sliced->push_back(std::make_pair(iter->second, Keys({key})));				
-			  }
-
-            }
-        }
+			  	// TO Construct the result set sliced : [ (0, [1,2,3] ), (1, [4,5,6])]
+				// Find if the node id exists 
+				auto it = std::find_if(sliced->begin(), sliced->end(), [&node_id](std::pair<int, Keys> ele) {return (ele.first == node_id);} );
+				if ( it != sliced->end()){
+					//Append to that node_id 
+					it->second.append(Keys({key}));
+					DLOG(INFO) << "APPEND "<< key << " to " << it->first ;					
+				} else {
+					sliced->push_back(std::make_pair(node_id, Keys({key})));				
+					DLOG(INFO) << "ADD "<< key << " to " << node_id ;					
+				}
+				
+			}
+		}
 		
         void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) override{
-            CHECK(!hash_ring_.empty());
+			
             sliced->clear();
 			
 			for (auto i = 0 ; i < kvs.first.size(); i++){
-            // for (auto key : kvs.first){
-			  auto key = kvs.first[i];
-			  auto val = kvs.second[i];
+				auto key = kvs.first[i];
+				auto val = kvs.second[i];
+
+				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
+				auto node_id = server_thread_ids_.at(JumpConsistentHash(key, server_thread_ids_.size()));
+				DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 				
-              // Use Key_{id} as the hash value for choosing node_id
-              std::string vkey_name = "Key_" + std::to_string(key);
-              std::size_t hash_value = std::hash<std::string>{}(vkey_name);
+			  	// TO Construct the result set sliced : [ (0, ([1,2,3],[.1,.2,.3]) ), (1, ([4,5,6], [.4,.5,.6])) ]
+				// Find if the node id exists 
+				auto it = std::find_if(sliced->begin(), sliced->end(), [&node_id](std::pair<int, KVPairs> ele) {return (ele.first == node_id);} );
+				third_party::SArray<Key> keys({key});
+				third_party::SArray<double> vals({val});
 
-              // always use upper_bound for searching the node_id, so that when any node removed, the partiation should not change too much.
-              auto iter = hash_ring_.upper_bound(hash_value);
-              if (iter == hash_ring_.end()) {
-                iter = hash_ring_.begin();
-              }
-			  auto node_id = iter->second;
-			  
-              LOG(INFO) << "Key: "<< key << ", Val:" << val << ", Node ID:" << node_id << " Hash:(" << hash_value << ")";
-			  
-			  // FIXME: any other function that can make it faster? any_of is O(nlog n)
-			  // check whether the key exist in the sliced, 
-			  
-			  // [ ( 0, ([0,1], [.0,.1] ) ) ]
-			  if (std::any_of(sliced->begin(), sliced->end(), [node_id](std::pair<int, KVPairs> ele) {return (ele.first == node_id);})){
-	  				  third_party::SArray<Key> keys({key});
-	  				  third_party::SArray<double> vals({val});
-					  sliced->at(node_id).second.first.append(keys);
-					  sliced->at(node_id).second.second.append(vals);
-			  } else {
-				  
-  				  third_party::SArray<Key> keys({key});
-  				  third_party::SArray<double> vals({val});
-				  
-			      sliced->push_back(std::make_pair(node_id, std::make_pair(keys, vals) ));
-			  }
-			  
-            }
-        }
-
-        void AddNode(const uint32_t node_id){
-          // Use Server_{id} as the hash value for the hash_ring_
-          std::string vnode_name = "Server_" + std::to_string(node_id);
-          std::size_t hash_value = std::hash<std::string>{}(vnode_name);
-          hash_ring_[hash_value] = node_id;
-          LOG(INFO) << "Add Node ID:" << node_id << " Hash:(" << hash_value << ")";
-        }
-        void RemoveNode(const uint32_t node_id){
-          // Use Server_{id} as the hash value for the hash_ring_
-          std::string vnode_name = "Server_" + std::to_string(node_id);
-          std::size_t hash_value = std::hash<std::string>{}(vnode_name);
-          hash_ring_.erase(hash_value);
-          LOG(INFO) << "Remove Node ID:" << node_id << " Hash:(" << hash_value << ")";
-        }
-        void ClearNode(){
-          hash_ring_.clear();
+				if ( it != sliced->end()){					
+					it->second.first.append(keys);
+					it->second.second.append(vals);
+					
+					DLOG(INFO) << "APPEND "<< key  << ":" << val << " to " << it->first;
+				} else {
+					sliced->push_back(std::make_pair(node_id, std::make_pair(keys, vals) ));
+					DLOG(INFO) << "ADD "<< key << " to " << node_id; 		
+				}
+				
+			}
+			
         }
 
     protected:
         Key est_max;
-        std::map<uint32_t, uint32_t> hash_ring_;
+
+		// Jump Consistent Hash : https://arxiv.org/ftp/arxiv/papers/1406/1406.2294.pdf
+		int32_t JumpConsistentHash(uint64_t key, int32_t num_buckets) {
+		    int64_t b = -1, j = 0;
+		    while (j < num_buckets) {
+		        b = j;
+		        key = key * 2862933555777941757ULL + 1;
+		        j = (b + 1) * (double(1LL << 31) / double((key >> 33) + 1));
+		    }
+		    return b;
+		}
 
 
 };
