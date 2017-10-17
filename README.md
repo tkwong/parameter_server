@@ -44,6 +44,12 @@ make -j4      # build all the targets
 * Implement a callback runner to handle reply messages
 * Implement [KVClientTable](worker/kv_client_table.hpp) according to the information given in worker/kv\_client\_table\_test.cpp
 
+## Tutorial 6
+* Check the io folder and understand how to connect to HDFS and coordinate data loading among workers
+* Take a look at test/test_hdfs_read.cpp and see how the connector may be used to load data
+* Check the lib folder for the abstraction of data loaders and labeled sample
+* Implement the data loaders and parsers. Understanding the producer-consumer paradigm may help
+
 ### Some tools: 
 * [glog](http://rpg.ifi.uzh.ch/docs/glog.html). You may use `GLOG_logtostderr=1 ./HuskyUnitTest` to print the `LOG(INFO)` information to the console.
 * [gtest](https://github.com/google/googletest/blob/master/googletest/docs/Primer.md).
