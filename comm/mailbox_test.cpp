@@ -110,6 +110,7 @@ TEST_F(TestMailbox, Receiving) {
 }
 
 TEST_F(TestMailbox, SendRecvTwoNodes) {
+  GTEST_FAIL(); // FIXME: 
   Node node1{0, "localhost", 32149};
   Node node2{1, "localhost", 32148};
   Message msg;

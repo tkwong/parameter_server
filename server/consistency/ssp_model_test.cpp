@@ -27,6 +27,7 @@ TEST_F(TestSSPModel, CheckConstructor) {
 }
 
 TEST_F(TestSSPModel, CheckGetAndAdd) {
+  GTEST_FAIL(); // FIXME: 
   ThreadsafeQueue<Message> reply_queue;
   int staleness = 1;
   int model_id = 0;
@@ -116,6 +117,7 @@ TEST_F(TestSSPModel, CheckGetAndAdd) {
 }
 
 TEST_F(TestSSPModel, CheckClock) {
+  GTEST_FAIL(); // FIXME: 
   ThreadsafeQueue<Message> reply_queue;
   int staleness = 1;
   int model_id = 0;
@@ -158,6 +160,7 @@ TEST_F(TestSSPModel, CheckClock) {
 }
 
 TEST_F(TestSSPModel, CheckStaleness) {
+  GTEST_FAIL(); // FIXME: 
   ThreadsafeQueue<Message> reply_queue;
   int staleness = 2;
   int model_id = 0;

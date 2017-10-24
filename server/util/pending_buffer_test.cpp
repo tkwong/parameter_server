@@ -19,6 +19,7 @@ class TestPendingBuffer : public testing::Test {
 TEST_F(TestPendingBuffer, Construct) { PendingBuffer pending_buffer; }
 
 TEST_F(TestPendingBuffer, PushAndPop) {
+  GTEST_FAIL(); // FIXME: 
   PendingBuffer pending_buffer;
 
   // Message m1

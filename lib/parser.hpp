@@ -21,19 +21,24 @@ class Parser {
     
     Sample sample;
     DataStore ds;
-     
-    char* token = std::strtok(line, " "); //FIXME: boost::string_ref cannot use as c_str
-    sample.x_ = token; //FIXME: Sample does not have x_
-    
-    for (int i=0; i<n_features; i++)
+	
+	// strtok_r and strtok operations :  see https://stackoverflow.com/questions/15961253/c-correct-usage-of-strtok-r
+	char *token;
+	char *rest = strdup(line.data());
+
+    for (int i=0; i < n_features; i++) // parse n_features only.
     {
-        key = std::strtok(line, ":");
-        val = std::strtok(line, " ");
-        
-        ds.put(key,val);
+		token = strtok_r(rest, ",", &rest);
+		if (i==0){ // FIXME: 
+			// sample.x_ = token; //FIXME: Sample does not have x_
+		} else {
+			// auto key = std::strtok(token, ":");
+			// auto val = std::strtok(token, " ");
+			// ds.insert(key,val);
+		}
     }
-    
-    sample.y_ = ds;//FIXME: sample does not have y_
+
+    // sample.y_ = ds;//FIXME: sample does not have y_
     
     return sample;
   }

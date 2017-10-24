@@ -31,6 +31,7 @@ TEST_F(TestASPModel, CheckConstructor) {
 }
 
 TEST_F(TestASPModel, CheckGetAndAdd) {
+  GTEST_FAIL(); // FIXME: 
   ThreadsafeQueue<Message> reply_queue;
   int model_id = 0;
   std::unique_ptr<AbstractStorage> storage(new MapStorage<int>());
