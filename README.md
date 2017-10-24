@@ -1,11 +1,12 @@
-# CSCI5570 Parameter Server Project Demonstration
+# CSCI5570 Parameter Server Project
+[![Build Status](https://travis-ci.com/tkwong/parameter_server.svg?token=v5f8d2CdYyiLA4FrugpX&branch=master)](https://travis-ci.com/tkwong/parameter_server)
 
 In courtesy of the Husky team. Special thanks to Yuzhen Huang.
 
 ## Install & Run
 Git clone this repository by
 ```sh
-git clone https://github.com/TatianaJin/csci5570.git
+git clone https://github.com/tkwong/parameter_server.git
 cd csci5570
 ```
 Create a directory for putting compiled files, and configure cmake.
