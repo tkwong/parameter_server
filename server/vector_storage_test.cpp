@@ -34,8 +34,11 @@ TEST_F(TestVectorStorage, AddGetInt) {
   auto rep_keys = third_party::SArray<Key>(rep.data[0]);
   auto rep_vals = third_party::SArray<int>(rep.data[1]);
   for (int index = 0; index < s_keys.size(); index++) {
-    EXPECT_EQ(s_keys[index], s_keys[index]);
-    EXPECT_EQ(s_vals[index], s_vals[index]);
+    EXPECT_EQ(rep_keys[index], s_keys[index]);
+    EXPECT_EQ(rep_vals[index], s_vals[index]);
+    //LOG(INFO) << "test ______________";
+    //LOG(INFO) << rep_vals[index];
+    //LOG(INFO) << rep_keys[index];
   }
 }
 

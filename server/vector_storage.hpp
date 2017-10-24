@@ -22,9 +22,10 @@ namespace csci5570{
 	             storage_keys.insert(storage_keys.end(), typed_keys[i]);
 	             //LOG(INFO) << "hello";
 	             //LOG(INFO) << storage_keys[0];
-	             storage_vals.insert(storage_vals.end(), vals[i]);
+	             storage_vals.insert(storage_vals.end(), typed_vals[i]);
 	             LOG(INFO) << "vals here";
-	             LOG(INFO) << storage_vals[0];
+	             LOG(INFO) << storage_vals[i];
+	             LOG(INFO) << typed_vals[i];
 			}
 			
 		} 
@@ -34,13 +35,18 @@ namespace csci5570{
      			for (int m=0; m<typed_keys.size(); m++){
      				if (storage_keys[i] == typed_keys[m]){
 		        		reply_vals[m] = storage_vals[i];
-		        	    LOG(INFO) << "vals here output";
-	                 	LOG(INFO) << reply_vals[0];
+		        	    //LOG(INFO) << "vals here output";
+	                 	//LOG(INFO) << reply_vals[m];
+
 	                 }
-		    		else
-		    			break; //If a key does not exist, return the values founded so far.
+		    		//else
+		    			//break; //If a key does not exist, return the values founded so far.
      			}
 	    	}
+	    	LOG(INFO) << "berfore return";
+
+	    	LOG(INFO) << reply_vals;
+
 	    	return third_party::SArray<char>(reply_vals);
   		}
 
