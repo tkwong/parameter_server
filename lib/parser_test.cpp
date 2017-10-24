@@ -20,7 +20,7 @@ class TestParser : public testing::Test {
         void TearDown() {}
 };
 
-TEST_F(TestParser, libsvm) {
+TEST_F(TestParser, DISABLED_libsvm) {
     boost::string_ref line1 = "-1 35:1 48:1 70:1 149:1 250:1";
     boost::string_ref line2 = "+1 99:1 207:1 208:1 225:1";
     
@@ -34,7 +34,7 @@ TEST_F(TestParser, libsvm) {
     expected.coeffRef(70)=1;
     expected.coeffRef(149)=1;
     expected.coeffRef(250)=1;
-    
+
     EXPECT_EQ(sample1.x_.sum(), expected.sum());
     EXPECT_EQ(sample1.y_, -1);
 }

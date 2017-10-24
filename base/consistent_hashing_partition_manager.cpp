@@ -15,7 +15,8 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 
         const std::vector<uint32_t>& GetServerThreadIds() const { return server_thread_ids_; }
 
-		void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) override{
+        void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) const override
+		{
 
 			sliced->clear();
 			
@@ -40,7 +41,8 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 			}
 		}
 		
-        void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) override{
+        void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) const override
+		{
 			
             sliced->clear();
 			
@@ -49,7 +51,7 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 				auto val = kvs.second[i];
 
 				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
-				auto node_id = server_thread_ids_.at(JumpConsistentHash(key, server_thread_ids_.size()));
+				auto node_id = server_thread_ids_.at(ConsistentHashingPartitionManager::JumpConsistentHash(key, server_thread_ids_.size()));
 				DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 				
 			  	// TO Construct the result set sliced : [ (0, ([1,2,3],[.1,.2,.3]) ), (1, ([4,5,6], [.4,.5,.6])) ]
@@ -76,7 +78,7 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
         Key est_max;
 
 		// Jump Consistent Hash : https://arxiv.org/ftp/arxiv/papers/1406/1406.2294.pdf
-		int32_t JumpConsistentHash(uint64_t key, int32_t num_buckets) {
+		static int32_t JumpConsistentHash(uint64_t key, int32_t num_buckets) {
 		    int64_t b = -1, j = 0;
 		    while (j < num_buckets) {
 		        b = j;

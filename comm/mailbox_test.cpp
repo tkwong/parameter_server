@@ -109,7 +109,7 @@ TEST_F(TestMailbox, Receiving) {
   mailbox.Stop();
 }
 
-TEST_F(TestMailbox, SendRecvTwoNodes) {
+TEST_F(TestMailbox, DISABLED_SendRecvTwoNodes) {
   Node node1{0, "localhost", 32149};
   Node node2{1, "localhost", 32148};
   Message msg;
