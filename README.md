@@ -3,11 +3,21 @@
 
 In courtesy of the Husky team. Special thanks to Yuzhen Huang.
 
+## Prerequisite
+for Mac OSX
+```sh
+brew install --build-from-source --with-python -vd protobuf
+```
+for linux
+```sh
+sudo apt-get install libprotobuf-dev protobuf-compiler
+```
+
 ## Install & Run
 Git clone this repository by
 ```sh
 git clone https://github.com/tkwong/parameter_server.git
-cd csci5570
+cd parameter_server
 ```
 Create a directory for putting compiled files, and configure cmake.
 ```

@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+rm -rf build
 mkdir -p build
 pushd .
 cd build
