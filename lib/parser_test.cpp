@@ -20,23 +20,36 @@ class TestParser : public testing::Test {
         void TearDown() {}
 };
 
-TEST_F(TestParser, DISABLED_libsvm) {
+TEST_F(TestParser, libsvm) {
     boost::string_ref line1 = "-1 35:1 48:1 70:1 149:1 250:1";
-    boost::string_ref line2 = "+1 99:1 207:1 208:1 225:1";
+    boost::string_ref line2 = "20 99:1.1 207:1.2 208:1.3 225:1.4";
     
-    LabeledSample<Eigen::SparseVector<int>, int> sample1;
-    sample1 = Parser<LabeledSample<Eigen::SparseVector<int>, int>, Eigen::SparseVector<int>>::
-        parse_libsvm(line1, 5);
+    auto sample1 = Parser<LabeledSample<int, int>, 
+        Eigen::SparseVector<int>>::parse_libsvm(line1, 5);
         
-    Eigen::SparseVector<int> expected;
-    expected.coeffRef(35)=1;
-    expected.coeffRef(48)=1;
-    expected.coeffRef(70)=1;
-    expected.coeffRef(149)=1;
-    expected.coeffRef(250)=1;
+    Eigen::SparseVector<int> expected1;
+    expected1.resize(251);
+    expected1.coeffRef(35)  = 1;
+    expected1.coeffRef(48)  = 1;
+    expected1.coeffRef(70)  = 1;
+    expected1.coeffRef(149) = 1;
+    expected1.coeffRef(250) = 1;
 
-    EXPECT_EQ(sample1.x_.sum(), expected.sum());
-    EXPECT_EQ(sample1.y_, -1);
+    EXPECT_EQ(sample1.features.sum(), expected1.sum());
+    EXPECT_EQ(sample1.label, -1);
+    
+    auto sample2 = Parser<LabeledSample<char, double>, 
+        Eigen::SparseVector<double>>::parse_libsvm(line2, 4);
+    
+    Eigen::SparseVector<int> expected2;
+    expected2.resize(226);
+    expected2.coeffRef(99)  = 1.1;
+    expected2.coeffRef(207) = 1.2;
+    expected2.coeffRef(208) = 1.3;
+    expected2.coeffRef(225) = 1.4;
+
+    EXPECT_EQ(sample2.features.sum(), expected2.sum());
+    EXPECT_EQ(sample2.label, 20);
 }
 
 } // namespace
