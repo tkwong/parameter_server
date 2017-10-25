@@ -4,7 +4,7 @@
 
 #include "lib/parser.hpp"
 #include "lib/labeled_sample.hpp"
-#include "Eigen/Sparse"
+#include "eigen3/Eigen/Sparse"
 
 namespace csci5570 {
 namespace lib {

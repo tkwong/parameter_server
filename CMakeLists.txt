@@ -27,13 +27,16 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wno-deprecated-declarations")
 endif()
 
+# Boost Libraries
 find_package(Threads)
+find_package(Boost 1.58.0 COMPONENTS system filesystem regex thread program_options date_time chrono)
 
 # External Dependencies
 include(cmake/modules/glog.cmake)
 include(cmake/modules/gflags.cmake)
 include(cmake/modules/gtest.cmake)
 include(cmake/modules/zeromq.cmake)
+include(cmake/modules/libhdfs3.cmake)
 include(cmake/dep.cmake)
 
 # External Includes
