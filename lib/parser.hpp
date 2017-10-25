@@ -1,6 +1,10 @@
 #pragma once
 
+#include "glog/logging.h"
+#include "gtest/gtest.h"
+
 #include <cstring>
+#include <cstdlib>
 #include "boost/utility/string_ref.hpp"
 
 namespace csci5570 {
@@ -20,24 +24,20 @@ class Parser {
     // so far we tried all the tree and found std::strtok_r is fastest :)
     
     Sample sample;
-    DataStore ds;
 	
-	// strtok_r and strtok operations :  see https://stackoverflow.com/questions/15961253/c-correct-usage-of-strtok-r
-	char *str = strdup(line.data());
-    char *saveptr1 = NULL;
+    char *str = strdup(line.data());
+    char *saveptr1;
     
     char *token = strtok_r(str, " ", &saveptr1);
-    // sample.x_ = token; //FIXME: Sample does not have x_
+    sample.addLabel(atoi(token));
     
     for (int i=0; i < n_features; i++) // parse n_features only.
     {
-        char *val = NULL;
-        char *key = strtok_r(str, ":", &val);
+        char *key = strtok_r(NULL, ":", &saveptr1);
+        char *val = strtok_r(NULL, " ", &saveptr1);
         
-        // ds.insert(key,val);
+        sample.addFeature(std::stoi(key), atof(val));
     }
-
-    // sample.y_ = ds;//FIXME: sample does not have y_
     
     return sample;
   }
