@@ -12,14 +12,9 @@ void ProgressTracker::Init(const std::vector<uint32_t>& tids) {
 }
 
 int ProgressTracker::AdvanceAndGetChangedMinClock(int tid) {
-    int old_min_clock = min_clock_;
-    min_clock_ = ++progresses_.at(tid); //Assign and Advance
-    
-    for (auto it=progresses_.begin(); it!=progresses_.end(); it++)
-        if (it->second < min_clock_)
-            min_clock_ = it->second;
-    
-    return (old_min_clock == min_clock_ ? -1 : min_clock_);
+    bool isUniqueMin = IsUniqueMin(tid);
+    progresses_.at(tid)++;
+    return (isUniqueMin ? ++min_clock_ : -1);
 }
 
 int ProgressTracker::GetNumThreads() const {
