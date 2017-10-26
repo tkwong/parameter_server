@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/abstract_sample.hpp"
-#include "Eigen/Sparse"
+#include "eigen3/Eigen/Sparse"
 
 namespace csci5570 {
 namespace lib {

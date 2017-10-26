@@ -23,6 +23,7 @@ else(EIGEN_FOUND)
             PREFIX eigen
             URL https://bitbucket.org/eigen/eigen/get/e99c823108f4.tar.gz
             INSTALL_DIR ${THIRDPARTY_DIR}
+            SOURCE_DIR ${THIRDPARTY_DIR}
             DOWNLOAD_DIR ${THIRDPARTY_DIR}
             CMAKE_CACHE_ARGS
                 -DCMAKE_BUILD_TYPE:STRING=Release
