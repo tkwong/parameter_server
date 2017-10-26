@@ -16,7 +16,7 @@ class TestProgressTracker : public testing::Test {
   void TearDown() {}
 };
 
-TEST_F(TestProgressTracker, DISABLED_Basic) {
+TEST_F(TestProgressTracker, Basic) {
   ProgressTracker tracker;
   tracker.Init({2, 7});
   EXPECT_EQ(tracker.GetNumThreads(), 2);
@@ -24,7 +24,7 @@ TEST_F(TestProgressTracker, DISABLED_Basic) {
   EXPECT_EQ(tracker.GetProgress(7), 0);
 }
 
-TEST_F(TestProgressTracker, DISABLED_CheckThreadValid) {
+TEST_F(TestProgressTracker, CheckThreadValid) {
   ProgressTracker tracker;
   tracker.Init({2, 7});
   EXPECT_TRUE(tracker.CheckThreadValid(2));
@@ -33,7 +33,7 @@ TEST_F(TestProgressTracker, DISABLED_CheckThreadValid) {
   EXPECT_TRUE(tracker.CheckThreadValid(7));
 }
 
-TEST_F(TestProgressTracker, DISABLED_Advance) {
+TEST_F(TestProgressTracker, Advance) {
   ProgressTracker tracker;
   tracker.Init({2, 7});
   EXPECT_EQ(tracker.GetMinClock(), 0);
@@ -44,6 +44,15 @@ TEST_F(TestProgressTracker, DISABLED_Advance) {
   EXPECT_EQ(tracker.AdvanceAndGetChangedMinClock(2), 2);   // [2,3]
   EXPECT_EQ(tracker.GetProgress(2), 2);
   EXPECT_EQ(tracker.GetProgress(7), 3);
+}
+
+TEST_F(TestProgressTracker, UniqueMin) {
+    ProgressTracker tracker;
+    tracker.Init({2,7});
+    EXPECT_FALSE(tracker.IsUniqueMin(2));
+    
+    tracker.AdvanceAndGetChangedMinClock(2);
+    EXPECT_TRUE(tracker.IsUniqueMin(7));
 }
 
 }  // namespace
