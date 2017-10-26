@@ -20,6 +20,9 @@ class PendingBuffer {
    * Return the number of pending requests at the specific progress
    */
   virtual int Size(const int progress);
+ 
+ private:
+    std::unordered_multimap<int, Message> buffer;
 };
 
 }  // namespace csci5570

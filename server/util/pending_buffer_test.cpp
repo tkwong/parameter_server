@@ -18,7 +18,7 @@ class TestPendingBuffer : public testing::Test {
 
 TEST_F(TestPendingBuffer, Construct) { PendingBuffer pending_buffer; }
 
-TEST_F(TestPendingBuffer, DISABLED_PushAndPop) {
+TEST_F(TestPendingBuffer, PushAndPop) {
   PendingBuffer pending_buffer;
 
   // Message m1
