@@ -20,7 +20,7 @@ class TestParser : public testing::Test {
         void TearDown() {}
 };
 
-TEST_F(TestParser, DISABLED_libsvm) {
+TEST_F(TestParser, libsvm) {
     boost::string_ref line1 = "-1 35:1 48:1 70:1 149:1 250:1";
     boost::string_ref line2 = "20 99:1.1 207:1.2 208:1.3 225:1.4";
 
