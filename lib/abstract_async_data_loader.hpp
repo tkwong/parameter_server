@@ -38,6 +38,8 @@ public:
     buffer_ = std::vector<BatchT> (batch_num);
     std::string hdfs_namenode = "proj10";
     int hdfs_namenode_port = 9000;
+    int master_port = 19817;  // use a random port number to avoid collision with other users
+    zmq::context_t zmq_context(1);
 
     int proc_id = getpid();
     std::string master_host = "proj10";
@@ -48,17 +50,17 @@ public:
     coordinator.serve();
     DLOG(INFO) << "Coordinator begins serving";
 
-    infmt_ =
+    auto infmt_ =
         new LineInputFormat(url, num_threads, task_id, &coordinator,
                             worker_host, hdfs_namenode, hdfs_namenode_port);
 
     DLOG(INFO) << "Line input is well prepared";
     // 2. spawn spreads to asynchronously load data
-    for (int n : num_threads) {
+    for (int n = 0 ; n < num_threads; n++) {
         
-      std::thread t([]() {
+      std::thread t([n,infmt_,this]() {
         
-        DLOG(INFO) << "thread #" << n << " id:" << std::this_thread::get_id() << " started\n";
+        DLOG(INFO) << "thread #" << std::to_string(n) << " id:" << std::this_thread::get_id() << " started\n";
 
         // put the line into the batch.
         bool success = true;
@@ -68,7 +70,7 @@ public:
           if (success != true) {
             break;              
           } else {
-            BatchT val (record.data());
+            BatchT val({record.data()});
             buffer_.push_back(val);  
           }
             
@@ -83,7 +85,7 @@ public:
     // store batch_size_ records in <batch> and return true if success
     // i.e. Consumer
     if (buffer_.size() > 0) {
-      batch = &(buffer_.pop_back()); // FIXME: pop_front instead?
+      // batch = &(buffer_.pop_back()); // FIXME: pop_front instead?
       return true;
     } else {
       return false;
