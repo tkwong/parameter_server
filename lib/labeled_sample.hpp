@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/abstract_sample.hpp"
-#include "eigen3/Eigen/Sparse"
+#include "lib/Eigen/Sparse"
 
 namespace csci5570 {
 namespace lib {
@@ -13,7 +13,7 @@ class LabeledSample : public AbstractSample<Feature,Label> {
     public:
         Eigen::SparseVector<Feature> features;
         Label label;
-        
+
         void addFeature(int index, Feature feature) override
         {
             if(features.size() <= index)
@@ -24,7 +24,7 @@ class LabeledSample : public AbstractSample<Feature,Label> {
         {
             this->label = label;
         }
-        
+
 };  // class LabeledSample
 
 }  // namespace lib
