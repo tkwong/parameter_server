@@ -37,6 +37,12 @@ void ServerThread::Main() {
       case Flag::kGet:
         model->Get(msg);
         break;
+      case Flag::kExit: 
+        break;
+      case Flag::kBarrier:
+        break;
+      case Flag::kResetWorkerInModel:
+        break;
     }
   }
 }
