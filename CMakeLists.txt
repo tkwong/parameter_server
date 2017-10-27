@@ -31,19 +31,25 @@ endif()
 find_package(Threads)
 find_package(Boost 1.58.0 COMPONENTS system filesystem regex thread program_options date_time chrono)
 
+
 # External Dependencies
 include(cmake/modules/glog.cmake)
 include(cmake/modules/gflags.cmake)
 include(cmake/modules/gtest.cmake)
 include(cmake/modules/zeromq.cmake)
-# include(cmake/modules/libhdfs3.cmake)
+include(cmake/modules/libhdfs3.cmake)
 include(cmake/dep.cmake)
+INCLUDE(FindProtobuf)
+FIND_PACKAGE(Protobuf REQUIRED)
+FIND_PACKAGE(LibXml2 REQUIRED)
+
+# list(APPEND external_project_dependencies cppzmq)
 
 # External Includes
-set(HUSKY_EXTERNAL_INCLUDE ${ZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIR} ${GFLAGS_INCLUDE_DIR} ${LIBHDFS3_INCLUDE_DIR})
+set(HUSKY_EXTERNAL_INCLUDE ${ZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIR} ${GFLAGS_INCLUDE_DIR} ${LIBHDFS3_INCLUDE_DIR} ${PROTOBUF_INCLUDE_DIR} ${KRB5_INCLUDE_DIR})
 
 # External Libraries
-set(HUSKY_EXTERNAL_LIB ${GLOG_LIBRARY} ${GFLAGS_LIBRARY} ${ZMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${LIBHDFS3_LIBRARY})
+set(HUSKY_EXTERNAL_LIB ${GLOG_LIBRARY} ${GFLAGS_LIBRARY} ${ZMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${LIBHDFS3_LIBRARY} ${PROTOBUF_LIBRARY} ${GSASL_LIBRARIES} ${KRB5_LIBRARIES} ${LIBXML2_LIBRARIES})
 
 # libhdfs3
 if(LIBHDFS3_FOUND)
