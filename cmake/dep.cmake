@@ -1,3 +1,36 @@
+FIND_PATH(GSASL_INCLUDE_DIR gsasl.h
+    PATHS
+    ${PC_GSASL_INCLUDEDIR}
+    ${PC_GSASL_INCLUDE_DIRS}
+  )
+
+FIND_LIBRARY(GSASL_LIBRARIES NAMES gsasl
+    PATHS
+    ${PC_GSASL_LIBDIR}
+    ${PC_GSASL_LIBRARY_DIRS}
+  )
+if(NOT GSASL_FIND_QUIETLY)
+  message (STATUS "Found GSASL:")
+  message (STATUS "  (Headers)       ${GSASL_INCLUDE_DIR}")
+  message (STATUS "  (Library)       ${GSASL_LIBRARIES}")
+endif( NOT GSASL_FIND_QUIETLY)
+
+FIND_PATH(KRB5_INCLUDE_DIR krb5.h)
+
+FIND_LIBRARY(KRB5_LIBRARIES NAMES krb5)
+if(NOT KRB5_FIND_QUIETLY)
+  message (STATUS "Found KRB5:")
+  message (STATUS "  (Headers)       ${KRB5_INCLUDE_DIR}")
+  message (STATUS "  (Library)       ${KRB5_LIBRARIES}")
+endif( NOT KRB5_FIND_QUIETLY)
+
+FIND_LIBRARY(LIBXML2_LIBRARIES NAMES libxml2)
+if(NOT LIBXML2_FIND_QUIETLY)
+  message (STATUS "Found LIBXML2:")
+  message (STATUS "  (Headers)       ${LIBXML2_INCLUDE_DIR}")
+  message (STATUS "  (Library)       ${LIBXML2_LIBRARIES}")
+endif( NOT LIBXML2_FIND_QUIETLY)
+
 ### Eigen ###
 
 # TODO: Check the version of Eigen
