@@ -28,7 +28,7 @@ TEST_F(TestAsyncReadBuffer, DISABLED_get_batch) {
 
 TEST_F(TestAsyncReadBuffer, ask) {
     AsyncReadBuffer buffer_;
-    // buffer_.init("http://localhost/", 0,1,1,1);
+    buffer_.init("hdfs://localhost:9000/user/tkwong/", 0,1,1,1);
     // EXPECT_EQ(buffer_.ask(), 1);
 }
 
