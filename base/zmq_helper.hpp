@@ -15,9 +15,10 @@ inline void zmq_send_common(zmq::socket_t* socket, const void* data, const size_
       switch (e.num()) {
       case EHOSTUNREACH:
       case EINTR:
+      case ETERM:
         continue;
       default:
-        LOG(ERROR) << "Invalid type of zmq::error!";
+        LOG(ERROR) << "Invalid type of zmq::error in zmq_send_common!";
       }
     }
 }
@@ -33,6 +34,6 @@ inline void zmq_recv_common(zmq::socket_t* socket, zmq::message_t* msg, int flag
     } catch (zmq::error_t e) {
       if (e.num() == EINTR)
         continue;
-      LOG(ERROR) << "Invalid type of zmq::error!";
+      LOG(ERROR) << "Invalid type of zmq::error in zmq_recv_common!";
     }
 }

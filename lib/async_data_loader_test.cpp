@@ -8,31 +8,17 @@ namespace csci5570 {
 namespace lib {
 namespace {
 
-class TestAsyncReadBuffer : public testing::Test {
+class TestAsyncDataLoader : public testing::Test {
     public:
-        TestAsyncReadBuffer() {}
-        ~TestAsyncReadBuffer() {}
+        TestAsyncDataLoader() {}
+        ~TestAsyncDataLoader() {}
     
     protected:
         void SetUp() {}
         void TearDown() {}
 };
 
-TEST_F(TestAsyncReadBuffer, DISABLED_init) {
-    
-}
-
-TEST_F(TestAsyncReadBuffer, DISABLED_get_batch) {
-    
-}
-
-TEST_F(TestAsyncReadBuffer, ask) {
-    // AsyncReadBuffer buffer_ ();
-    // buffer_.init("url", 0,1,1,1);
-    // EXPECT_EQ(buffer_.ask(), 1);
-}
-
-TEST_F(TestAsyncReadBuffer, end_of_file) {
+TEST_F(TestAsyncDataLoader, DISABLED_init) {
     
 }
 
