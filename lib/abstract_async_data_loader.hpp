@@ -15,6 +15,7 @@
 #include "io/line_input_format.hpp"
 #include "lib/labeled_sample.hpp"
 #include "lib/LUrlParser/LUrlParser.hpp"
+#include "lib/blockingconcurrentqueue.h"
 
 namespace csci5570 {
 namespace lib {
@@ -22,7 +23,10 @@ namespace lib {
 class AsyncReadBuffer {
 public:
   using BatchT = std::vector<std::string>;
-  ~AsyncReadBuffer() {}
+  ~AsyncReadBuffer() {
+    thread_.join();
+    master_thread_.join();
+  }
 
   /*
    * Initializes the input format and reader threads
@@ -38,7 +42,10 @@ public:
   void init(const std::string &url, int task_id, int num_threads,
             int batch_size, int batch_num) {
     
-    // 1. initialize input format      
+    if (init_) return ; // return if already init
+    
+    // 1. initialize URL      
+
     // parse url into name hdfs_namenode and port
     LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL( url );
 
@@ -51,70 +58,84 @@ public:
     DLOG(INFO) << "Port: " << hdfs_namenode_port ;
     DLOG(INFO) << "Path: " << path ;
     
-    int master_port = 19817;  // use a random port number to avoid collision with other users
-    zmq::context_t zmq_context(1);
-
+    // 1. Spawn the HDFS block assigner thread on the master
+        
+    // zmq::context_t zmq_context(1);
+    zmq_context = std::shared_ptr<zmq::context_t> (new zmq::context_t(1));
+    // zmq::context_t zmq_context (1);
+    // auto zmq_context = std::make_shared<zmq::context_t>(1);
     int proc_id = getpid();
     std::string master_host = "localhost";
+    int master_port = 19817;  // use a random port number to avoid collision with other users
     std::string worker_host = "localhost";
 
-    Coordinator coordinator(proc_id, worker_host, &zmq_context, master_host,
-                            master_port);
-    coordinator.serve();
+    master_thread_ = std::thread([this, master_port, hdfs_namenode_port, hdfs_namenode] {
+      HDFSBlockAssigner hdfs_block_assigner(hdfs_namenode, hdfs_namenode_port, zmq_context.get(), master_port);
+      hdfs_block_assigner.Serve();
+    });
+    
+    coordinator = std::shared_ptr<Coordinator> (new Coordinator(proc_id, worker_host, zmq_context.get(), master_host, master_port));
+    coordinator->serve();       
     DLOG(INFO) << "Coordinator begins serving";
-                                    
-    infmt_ = std::unique_ptr<LineInputFormat> (new LineInputFormat(path, num_threads, task_id, &coordinator,
-                                worker_host, hdfs_namenode, hdfs_namenode_port));
-                                
-    DLOG(INFO) << "Line input is well prepared";
+    
     // 2. spawn spreads to asynchronously load data
+    DLOG(INFO) << "Spawning Producer Thread(s)";
     
-    DLOG(INFO) << "Spawning " << num_threads << " Thread(s)";
-    
-    for (int n = 0 ; n < num_threads; n++) {
-      // auto passing = buffer_;
-      auto buffer__ = shared_ptr<std::queue<BatchT>>;
-      workers.push_back(std::thread( [n, &buffer_] () {
-        DLOG(INFO) << "thread #" << std::to_string(n) << " id:" << std::this_thread::get_id() << " started\n";
+    thread_ = std::thread( [this, proc_id, path, num_threads,task_id, worker_host, hdfs_namenode, hdfs_namenode_port, master_port, master_host] () {
+      
+ 
+      DLOG(INFO) << "thread id:" << std::this_thread::get_id() << " started\n";
+                                    
+      infmt_ = std::shared_ptr<LineInputFormat> (new LineInputFormat(path, num_threads, task_id, coordinator.get(),
+                                  worker_host, hdfs_namenode, hdfs_namenode_port));
 
-        // put the line into the batch.
-        bool success = true;
-        boost::string_ref record;
+      DLOG(INFO) << "Line input is well prepared";
+
+      // put the line into the batch.
+      bool success = false;
+      boost::string_ref record;
+      try
+      {
         while (true) {
-          // success = infmt_->next(record);
-            success = false;
-          if (success != true) {
-            break;
+              success = infmt_->next(record); // is it thread safe?
+          if (success) {
+              BatchT val({record.data()});
+              buffer_.enqueue(val);
+              LOG(INFO) << "Current Batch Count is " << batch_count_++;
           } else {
-            // BatchT val({record.data()});
-            // mybuffer.push_back(val);
+              eof_ = true;
+              LOG(INFO) << "EOF Reached " ;
+              break;
           }
 
         }
 
-        DLOG(INFO) << "thread #" << std::to_string(n) << " id:" << std::this_thread::get_id() << " ended\n";
-      }));
+      } catch (const std::exception& e) {
+         std::cout << e.what();
+      }
       
+      // Remember to notify master that the worker wants to exit
+      BinStream finish_signal;
+      finish_signal << worker_host << task_id;
+      coordinator->notify_master(finish_signal, 300);
       
-    }
-    
+      DLOG(INFO) << "thread id:" << std::this_thread::get_id() << " ended\n";
+    });
+        
     init_ = true;
   }
 
   bool get_batch(BatchT *batch) {
     // store batch_size_ records in <batch> and return true if success
     // i.e. Consumer
-    if (buffer_.size() > 0) {
-      // batch = &(buffer_.pop_back()); // FIXME: pop_front instead?
-      return true;
-    } else {
-      return false;
-    }
+    if (eof_ && buffer_.size_approx() == 0) return false;
+    // return buffer_.wait_dequeue(*batch);
+    return buffer_.wait_dequeue_timed(*batch, std::chrono::milliseconds(5));
   }
 
   int ask() {
     // return the number of batches buffered
-    return buffer_.size();
+    return buffer_.size_approx();
   }
 
   inline bool end_of_file() const {
@@ -126,13 +147,18 @@ protected:
   virtual void main() {
     // the workloads of the thread reading samples asynchronously
   }
+    
+  std::shared_ptr<zmq::context_t> zmq_context;
+  std::shared_ptr<Coordinator> coordinator;
 
   // input
-  std::unique_ptr<LineInputFormat> infmt_;
+  std::shared_ptr<LineInputFormat> infmt_;
   std::atomic<bool> eof_{false};
 
+
   // buffer
-  std::queue<BatchT> buffer_;
+  moodycamel::BlockingConcurrentQueue<BatchT> buffer_;
+  
   int batch_size_;      // the size of each batch
   int batch_num_;       // max buffered batch number
   int batch_count_ = 0; // unread buffered batch number
@@ -141,10 +167,11 @@ protected:
 
   // thread
   std::thread thread_;
-  std::vector<std::thread> workers;
-  std::mutex mutex_;
-  std::condition_variable load_cv_;
-  std::condition_variable get_cv_;
+  std::thread master_thread_;
+  // std::mutex mutex_;
+  // std::condition_variable load_cv_;
+  // std::condition_variable get_cv_;
+  
   bool init_ = false;
 private: 
   

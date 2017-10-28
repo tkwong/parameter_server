@@ -18,22 +18,40 @@ class TestAsyncReadBuffer : public testing::Test {
         void TearDown() {}
 };
 
-TEST_F(TestAsyncReadBuffer, DISABLED_init) {
-    
+TEST_F(TestAsyncReadBuffer, init) {
+    AsyncReadBuffer buffer_;    
+    buffer_.init("hdfs://localhost:9000/user/tkwong/", 0,1,1,1);
 }
 
-TEST_F(TestAsyncReadBuffer, DISABLED_get_batch) {
-    
+TEST_F(TestAsyncReadBuffer, get_batch) {
+  AsyncReadBuffer buffer_;    
+  buffer_.init("hdfs://localhost:9000/user/tkwong/", 0,1,1,1);
+  
+  AsyncReadBuffer::BatchT batch ; 
+  while ( !buffer_.end_of_file() || buffer_.ask() > 0) { // only stop when end of file reached and buffer empty.
+    if ( buffer_.get_batch(&batch) ){
+      for(auto b : batch) { 
+        DLOG(INFO) << b;
+      }      
+    }
+  }
+  
 }
 
 TEST_F(TestAsyncReadBuffer, ask) {
     AsyncReadBuffer buffer_;
     buffer_.init("hdfs://localhost:9000/user/tkwong/", 0,1,1,1);
-    // EXPECT_EQ(buffer_.ask(), 1);
+    sleep(1);
+    EXPECT_NE(buffer_.ask(), 0);
 }
 
 TEST_F(TestAsyncReadBuffer, end_of_file) {
-    
+  AsyncReadBuffer buffer_;    
+  buffer_.init("hdfs://localhost:9000/user/tkwong/", 0,1,1,1);
+  while(buffer_.end_of_file() != true){
+    DLOG(INFO) << "Waiting end_of_file";
+    sleep(1);
+  }
 }
 
 } // namespace

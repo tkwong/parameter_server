@@ -43,11 +43,12 @@ class LineInputFormat {
   void set_worker_info(int id) { id_ = id; }
 
   bool next(boost::string_ref& ref) {
+
     if (buffer_.size() == 0) {
       bool success = fetch_new_block();
       if (success == false)
         return false;
-    }
+    }    
     // last charater in block
     if (r == buffer_.size() - 1) {
       // fetch next block
