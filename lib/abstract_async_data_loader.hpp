@@ -5,12 +5,16 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <queue>
+#include <utility>
+#include <memory>
 
 #include "boost/tokenizer.hpp"
 
 #include "base/magic.hpp"
 #include "io/line_input_format.hpp"
 #include "lib/labeled_sample.hpp"
+#include "lib/LUrlParser/LUrlParser.hpp"
 
 namespace csci5570 {
 namespace lib {
@@ -33,52 +37,68 @@ public:
    */
   void init(const std::string &url, int task_id, int num_threads,
             int batch_size, int batch_num) {
-    // 1. initialize input format
-                
-    buffer_ = std::vector<BatchT> (batch_num);
-    std::string hdfs_namenode = "proj10";
-    int hdfs_namenode_port = 9000;
+    
+    // 1. initialize input format      
+    // parse url into name hdfs_namenode and port
+    LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL( url );
+
+    if ( ! URL.IsValid() ){ return ; } 
+    std::string hdfs_namenode = URL.m_Host.empty() ? "localhost" : URL.m_Host ;
+    int hdfs_namenode_port = URL.m_Port.empty() ? 9000 : stoi(URL.m_Port) ;
+    std::string path = "/" + URL.m_Path; 
+    
+    DLOG(INFO) << "Host: " << hdfs_namenode ;
+    DLOG(INFO) << "Port: " << hdfs_namenode_port ;
+    DLOG(INFO) << "Path: " << path ;
+    
     int master_port = 19817;  // use a random port number to avoid collision with other users
     zmq::context_t zmq_context(1);
 
     int proc_id = getpid();
-    std::string master_host = "proj10";
-    std::string worker_host = "proj10";
+    std::string master_host = "localhost";
+    std::string worker_host = "localhost";
 
     Coordinator coordinator(proc_id, worker_host, &zmq_context, master_host,
                             master_port);
     coordinator.serve();
     DLOG(INFO) << "Coordinator begins serving";
-
-    auto infmt_ =
-        new LineInputFormat(url, num_threads, task_id, &coordinator,
-                            worker_host, hdfs_namenode, hdfs_namenode_port);
-
+                                    
+    infmt_ = std::unique_ptr<LineInputFormat> (new LineInputFormat(path, num_threads, task_id, &coordinator,
+                                worker_host, hdfs_namenode, hdfs_namenode_port));
+                                
     DLOG(INFO) << "Line input is well prepared";
     // 2. spawn spreads to asynchronously load data
+    
+    DLOG(INFO) << "Spawning " << num_threads << " Thread(s)";
+    
     for (int n = 0 ; n < num_threads; n++) {
-        
-      std::thread t([n,infmt_,this]() {
-        
+      // auto passing = buffer_;
+      auto buffer__ = shared_ptr<std::queue<BatchT>>;
+      workers.push_back(std::thread( [n, &buffer_] () {
         DLOG(INFO) << "thread #" << std::to_string(n) << " id:" << std::this_thread::get_id() << " started\n";
 
         // put the line into the batch.
         bool success = true;
         boost::string_ref record;
         while (true) {
-          success = infmt_->next(record);
+          // success = infmt_->next(record);
+            success = false;
           if (success != true) {
-            break;              
+            break;
           } else {
-            BatchT val({record.data()});
-            buffer_.push_back(val);  
+            // BatchT val({record.data()});
+            // mybuffer.push_back(val);
           }
-            
+
         }
-        
-        DLOG(INFO) << "thread #" << n << " id:" << std::this_thread::get_id() << " ended\n";
-      });
+
+        DLOG(INFO) << "thread #" << std::to_string(n) << " id:" << std::this_thread::get_id() << " ended\n";
+      }));
+      
+      
     }
+    
+    init_ = true;
   }
 
   bool get_batch(BatchT *batch) {
@@ -94,7 +114,7 @@ public:
 
   int ask() {
     // return the number of batches buffered
-    buffer_.size();
+    return buffer_.size();
   }
 
   inline bool end_of_file() const {
@@ -112,7 +132,7 @@ protected:
   std::atomic<bool> eof_{false};
 
   // buffer
-  std::vector<BatchT> buffer_;
+  std::queue<BatchT> buffer_;
   int batch_size_;      // the size of each batch
   int batch_num_;       // max buffered batch number
   int batch_count_ = 0; // unread buffered batch number
@@ -121,10 +141,14 @@ protected:
 
   // thread
   std::thread thread_;
+  std::vector<std::thread> workers;
   std::mutex mutex_;
   std::condition_variable load_cv_;
   std::condition_variable get_cv_;
   bool init_ = false;
+private: 
+  
+  
 };
 
 template <typename Sample> class AbstractAsyncDataLoader {

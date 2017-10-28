@@ -64,12 +64,16 @@ boost::string_ref HDFSFileSplitter::fetch_block(bool is_next) {
 void HDFSFileSplitter::init_blocksize(hdfsFS fs, const std::string& url) {
   int num_files;
   hdfsFileInfo* file_info = hdfsListDirectory(fs, url.c_str(), &num_files);
+
   for (int i = 0; i < num_files; ++i) {
+    if (&file_info[i] == nullptr) continue;
+    
     if (file_info[i].mKind == kObjectKindFile) {
       hdfs_block_size = file_info[i].mBlockSize;
       hdfsFreeFileInfo(file_info, num_files);
       return;
     }
+
     continue;
   }
   LOG(ERROR) << "Block size init error. (File NOT exist or EMPTY directory)";
