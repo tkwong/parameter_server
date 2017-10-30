@@ -29,6 +29,7 @@ addons:
     - libboost-all-dev
     - libprotobuf-dev
     - gsasl
+    - libxml2-dev
 os:
   - linux
   - osx
