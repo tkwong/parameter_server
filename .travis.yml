@@ -27,6 +27,7 @@ addons:
     - clang-3.7
     - valgrind
     - libboost-all-dev
+    - libprotobuf-dev
 os:
   - linux
   - osx
