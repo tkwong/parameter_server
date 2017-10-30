@@ -28,6 +28,7 @@ addons:
     - valgrind
     - libboost-all-dev
     - libprotobuf-dev
+    - gsasl
 os:
   - linux
   - osx
