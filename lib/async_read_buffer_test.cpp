@@ -20,12 +20,12 @@ class TestAsyncReadBuffer : public testing::Test {
 
 TEST_F(TestAsyncReadBuffer, init) {
     AsyncReadBuffer buffer_;    
-    buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1,1);
+    buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1024,10240);
 }
 
 TEST_F(TestAsyncReadBuffer, get_batch) {
   AsyncReadBuffer buffer_;    
-  buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1,1);
+  buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1024,10240);
   
   AsyncReadBuffer::BatchT batch ; 
   while ( !buffer_.end_of_file() || buffer_.ask() > 0) { // only stop when end of file reached and buffer empty.
@@ -40,14 +40,14 @@ TEST_F(TestAsyncReadBuffer, get_batch) {
 
 TEST_F(TestAsyncReadBuffer, ask) {
     AsyncReadBuffer buffer_;
-    buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1,1);
+    buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1024,10240);
     sleep(1);
     EXPECT_NE(buffer_.ask(), 0);
 }
 
 TEST_F(TestAsyncReadBuffer, end_of_file) {
   AsyncReadBuffer buffer_;    
-  buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1,1);
+  buffer_.init("hdfs://localhost:9000/datasets/classification/a9/", 0,1,1024,10240);
   while(buffer_.end_of_file() != true){
     DLOG(INFO) << "Waiting end_of_file";
     sleep(1);

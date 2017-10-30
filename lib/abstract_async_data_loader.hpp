@@ -193,21 +193,32 @@ public:
     int task_id = 0;
 
     // FIXME: don't know the number of threads yet
-    int num_treads = 10;
+    int num_threads = 10;
     
     // FIXME: don't know the max number of records in the buffer yet
     int max_batch_num = 10000;
     
     // parse data in buffer
     // FIXME: where is the parse function?
-    buffer_.init(url, task_id, num_threads, batch_size_, max_batch_num);
+    buffer_->init(url, task_id, num_threads, batch_size_, max_batch_num);
     
     // TODO: return a batch of samples
+    std::vector<Sample> output; 
+    AsyncReadBuffer::BatchT batch ; 
+    while ( !buffer_->end_of_file() || buffer_->ask() > 0) { // only stop when end of file reached and buffer empty.
+      if ( buffer_->get_batch(&batch) ){
+        for(auto b : batch) { 
+          DLOG(INFO) << b;
+          output.push_back(b); 
+        }      
+      }
+    }
+    return output;
     
   }
   std::vector<Key> get_keys() {
     // return the keys of features of the current batch
-    return std::vector<Key> output(index_set_.begin(), index_set_.end());
+    return std::vector<Key> (index_set_.begin(), index_set_.end());
   }
 
   inline bool is_empty() {}
