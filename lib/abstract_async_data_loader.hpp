@@ -185,11 +185,29 @@ public:
       : batch_size_(batch_size), n_features_(num_features), buffer_(buffer) {}
 
   virtual const std::vector<Sample> &get_data() {
+    
+    // FIXME: no URL passing from arg? huh? 
+    std::string url ("hdfs://localhost:9000/datasets/classification/a9/");
+    
+    // FIXME: don't know the task_id yet
+    int task_id = 0;
+
+    // FIXME: don't know the number of threads yet
+    int num_treads = 10;
+    
+    // FIXME: don't know the max number of records in the buffer yet
+    int max_batch_num = 10000;
+    
     // parse data in buffer
-    // return a batch of samples
+    // FIXME: where is the parse function?
+    buffer_.init(url, task_id, num_threads, batch_size_, max_batch_num);
+    
+    // TODO: return a batch of samples
+    
   }
   std::vector<Key> get_keys() {
     // return the keys of features of the current batch
+    return std::vector<Key> output(index_set_.begin(), index_set_.end());
   }
 
   inline bool is_empty() {}
