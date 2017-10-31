@@ -224,10 +224,10 @@ TEST_F(TestMailbox, BarrierTwoNodes) {
 
 TEST_F(TestMailbox, BarrierFourNodes) {
   std::vector<Node> nodes{
-    {0, "localhost", 43551},
-    {1, "localhost", 43552},
-    {2, "localhost", 43553},
-    {3, "localhost", 43554}};
+    {0, "localhost", 53551},
+    {1, "localhost", 53552},
+    {2, "localhost", 53553},
+    {3, "localhost", 53554}};
 
   std::vector<std::thread> threads(nodes.size());
   for (int i = 0; i < nodes.size(); ++ i) {
