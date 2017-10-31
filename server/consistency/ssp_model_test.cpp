@@ -228,12 +228,7 @@ TEST_F(TestSSPModel, CheckStaleness) {
   third_party::SArray<int> m_keys1({0});
   m.AddData(m_keys1);
   model->Get(m);
-  EXPECT_EQ(dynamic_cast<SSPModel*>(model.get())->GetPendingSize(2), 1);
-  /*
-    FIXME: 
-    Original is GetPendingSize(1), however, since staleness is 2, I think the message
-    stored in the buffer should have key 2 instead of 1. Need to Confirm with TA.
-  */
+  EXPECT_EQ(dynamic_cast<SSPModel*>(model.get())->GetPendingSize(1), 1);
 
   // Message6
   Message m6;
@@ -252,7 +247,7 @@ TEST_F(TestSSPModel, CheckStaleness) {
   third_party::SArray<int> m7_keys({0});
   m7.AddData(m7_keys);
   model->Get(m7);
-  EXPECT_EQ(dynamic_cast<SSPModel*>(model.get())->GetPendingSize(2), 0); // FIXME: Same as above
+  EXPECT_EQ(dynamic_cast<SSPModel*>(model.get())->GetPendingSize(1), 0);
 }
 
 }  // namespace
