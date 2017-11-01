@@ -4,7 +4,7 @@
 ----------------
 -- Movitation --
 ----------------
-
+A powerful parameter sever for large-scale data processing.
 ------------------------
 -- Additional Feature --
 ------------------------
@@ -42,7 +42,8 @@ another thread once that thread has finished its original jobs. This try to solv
 -------------------
 -- Existing Work --
 -------------------
-
+Microsoft:Multiverso
+Tencent:angel
 --------------
 -- Timeline --
 --------------
