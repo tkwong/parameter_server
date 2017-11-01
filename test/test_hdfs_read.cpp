@@ -13,7 +13,7 @@
 namespace csci5570 {
 
 void HDFS_Read() {
-  std::string hdfs_namenode = "proj10";
+  std::string hdfs_namenode = "localhost";
   int hdfs_namenode_port = 9000;
   int master_port = 19817;  // use a random port number to avoid collision with other users
   zmq::context_t zmq_context(1);
@@ -26,8 +26,8 @@ void HDFS_Read() {
 
   // 2. Prepare meta info for the master and workers
   int proc_id = getpid();  // the actual process id, or you can assign a virtual one, as long as it is distinct
-  std::string master_host = "proj10";  // change to the node you are actually using
-  std::string worker_host = "proj10";  // change to the node you are actually using
+  std::string master_host = "localhost";  // change to the node you are actually using
+  std::string worker_host = "localhost";  // change to the node you are actually using
 
   // 3. One coordinator for one process
   Coordinator coordinator(proc_id, worker_host, &zmq_context, master_host, master_port);
@@ -36,7 +36,8 @@ void HDFS_Read() {
 
   // 4. The user thread runing UDF
   std::thread worker_thread([hdfs_namenode_port, hdfs_namenode, &coordinator, worker_host] {
-    std::string input = "hdfs:///datasets/classification/a9";
+    // std::string input = "hdfs:///datasets/classification/a9";
+    std::string input = "/user/tkwong/";
     int num_threads = 1;
     int second_id = 0;
     LineInputFormat infmt(input, num_threads, second_id, &coordinator, worker_host, hdfs_namenode, hdfs_namenode_port);
@@ -48,7 +49,9 @@ void HDFS_Read() {
     int count = 0;
     boost::string_ref record;
     while (true) {
+
       success = infmt.next(record);
+              // LOG(INFO) << "Data : " << record.data();
       if (success == false)
         break;
       ++count;

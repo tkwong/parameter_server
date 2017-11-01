@@ -27,9 +27,13 @@ addons:
     - clang-3.7
     - valgrind
     - libboost-all-dev
+    - libprotobuf-dev
+    - libprotoc-dev
+    - gsasl
+    - libxml2-dev
 os:
   - linux
-  - osx
+  # - osx
 language: cpp
 compiler:
   - gcc

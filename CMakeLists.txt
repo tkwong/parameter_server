@@ -30,6 +30,11 @@ endif()
 # Boost Libraries
 find_package(Threads)
 find_package(Boost 1.58.0 COMPONENTS system filesystem regex thread program_options date_time chrono)
+if(Boost_FOUND)
+message (STATUS "Found Boost:")
+message (STATUS "  (Headers)       ${Boost_INCLUDE_DIR}")
+message (STATUS "  (Library)       ${Boost_LIBRARIES}")
+endif(Boost_FOUND)
 
 # External Dependencies
 include(cmake/modules/glog.cmake)
@@ -37,20 +42,14 @@ include(cmake/modules/gflags.cmake)
 include(cmake/modules/gtest.cmake)
 include(cmake/modules/zeromq.cmake)
 include(cmake/modules/libhdfs3.cmake)
-include(cmake/dep.cmake)
 
 # External Includes
-set(HUSKY_EXTERNAL_INCLUDE ${ZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIR} ${GFLAGS_INCLUDE_DIR} ${LIBHDFS3_INCLUDE_DIR})
+set(HUSKY_EXTERNAL_INCLUDE ${ZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIR} ${GFLAGS_INCLUDE_DIR} ${LIBHDFS3_INCLUDE_DIR} ${PROTOBUF_INCLUDE_DIR} ${KRB5_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
 
 # External Libraries
-set(HUSKY_EXTERNAL_LIB ${GLOG_LIBRARY} ${GFLAGS_LIBRARY} ${ZMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${LIBHDFS3_LIBRARY})
+set(HUSKY_EXTERNAL_LIB ${GLOG_LIBRARY} ${GFLAGS_LIBRARY} ${ZMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
-# libhdfs3
-if(LIBHDFS3_FOUND)
-    list(APPEND HUSKY_EXTERNAL_INCLUDE ${LIBHDFS3_INCLUDE_DIR})
-    list(APPEND HUSKY_EXTERNAL_LIB ${LIBHDFS3_LIBRARY})
-    list(APPEND HUSKY_EXTERNAL_DEFINITION ${LIBHDFS3_DEFINITION})
-endif(LIBHDFS3_FOUND)
+include(cmake/dep.cmake)
 
 add_subdirectory(base)
 add_subdirectory(comm)
