@@ -56,5 +56,6 @@ add_subdirectory(base)
 add_subdirectory(comm)
 add_subdirectory(server)
 add_subdirectory(io)
+add_subdirectory(driver)
 
 add_subdirectory(test)
