@@ -5,19 +5,21 @@
 -- Movitation --
 ----------------
 A powerful parameter sever for large-scale data processing.
+// Add more... (What is straggler, why are we trying to solve it?)
+
 ------------------------
 -- Additional Feature --
 ------------------------
-Use Heuristic Scheduling, Job Stealing and Hierarchical Architecture to address straggler problems.
+Use Heuristic Scheduling, Job Stealing/Cloning and Hierarchical Architecture to address straggler problems.
 
 ----------------------
 -- Technique to use --
 ----------------------
 We first divide the straggler problems by their cause.
-Transient Stragglers -- Due to background OS activities
-Permanent Stragglers -- Due to Hardware Configuration
+Transient Stragglers -- Due to background activities, OS, etc.
+Permanent Stragglers -- Due to Hardware Partial Failure or Heterogeneous Cluster
 
-Different straggler will be solved using different technique, but we first need a technique to distinguish
+Different straggler will be solved using different technique, but we first need a method to distinguish
 them. We proposed Hierarchical Architecture for this purpose.
 
 Hierarchical Architecture:
@@ -34,16 +36,20 @@ scheduler (independent or on server side) will record the time used by each work
 use this to adjust the workload of each worker in the following iteration. The schedule will adopt to the
 nearly idea workload for each worker after some iterations and this solved the Permanent Stragglers.
 
-Job Stealing:
-The Job Stealing is used locally (within a worker). The worker will monitor its threads over an iteration.
-If a thread is much slower than others, the worker will transfer the remaining jobs of the straggler to
-another thread once that thread has finished its original jobs. This try to solve the Transient Stragglers.
+Job Stealing/Cloning:
+The Job Stealing/Cloning is used locally (within a worker). If a worker thread does not get a task in the
+beginning of an iteration, i.e. the number of tasks the worker received is less than the number of threads
+it has, then this thread will clone a task from another thread. During an iteration, if a thread has finished
+its task, then it will steal any unstarted task from other threads or start a clone of a task that is running
+on another thread, depending on whether there is unstarted task left.
 
 -------------------
 -- Existing Work --
 -------------------
 Microsoft:Multiverso
 Tencent:angel
+// Add More... (What have been proposed to address the straggler problem?)
+
 --------------
 -- Timeline --
 --------------
