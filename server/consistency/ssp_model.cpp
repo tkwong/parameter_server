@@ -13,14 +13,12 @@ SSPModel::SSPModel(uint32_t model_id, std::unique_ptr<AbstractStorage>&& storage
 }
 
 void SSPModel::Clock(Message& msg) {
-    const int clock = progress_tracker_.GetProgress(msg.meta.sender);
-    if (clock >= progress_tracker_.GetMinClock() + staleness_) return;
-    
-    if (progress_tracker_.AdvanceAndGetChangedMinClock(msg.meta.sender) != -1)
+    const int new_min = progress_tracker_.AdvanceAndGetChangedMinClock(msg.meta.sender);
+
+    if (new_min != -1)
     {
-        auto messages = buffer_.Pop(clock + staleness_);
-        for(auto message : messages)
-            reply_queue_->Push(message);
+        auto messages = buffer_.Pop(new_min);
+        for(auto message : messages) reply_queue_->Push(message);
     }
 }
 
@@ -30,11 +28,9 @@ void SSPModel::Add(Message& msg) {
 
 void SSPModel::Get(Message& msg) {
     const int clock = progress_tracker_.GetProgress(msg.meta.sender);
-    
-    LOG(INFO) << "Clock " << clock;
 
-    if (clock >= progress_tracker_.GetMinClock() + staleness_)
-        buffer_.Push(clock, msg);
+    if (clock > progress_tracker_.GetMinClock() + staleness_)
+        buffer_.Push(clock - staleness_, msg);
     else
         reply_queue_->Push(storage_->Get(msg));
 }
