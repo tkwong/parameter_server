@@ -8,7 +8,7 @@
 ------------------------
 -- Additional Feature --
 ------------------------
-Use Heuristic Scheduling, Job Replication and Hierarchical Architecture to address straggler problems.
+Use Heuristic Scheduling, Job Stealing and Hierarchical Architecture to address straggler problems.
 
 ----------------------
 -- Technique to use --
@@ -46,3 +46,7 @@ another thread once that thread has finished its original jobs. This try to solv
 --------------
 -- Timeline --
 --------------
+Week 11 Implement Hierarchical Architecture
+Week 12 Implement Job Stealing
+Week 13 Implement Heuristic Scheduling
+Week 14 Reserved for any delay
