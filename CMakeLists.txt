@@ -36,7 +36,7 @@ include(cmake/modules/glog.cmake)
 include(cmake/modules/gflags.cmake)
 include(cmake/modules/gtest.cmake)
 include(cmake/modules/zeromq.cmake)
-# include(cmake/modules/libhdfs3.cmake)
+include(cmake/modules/libhdfs3.cmake)
 include(cmake/dep.cmake)
 
 # External Includes
