@@ -1,0 +1,48 @@
+=======================================
+===   Additional Feature Proposal   ===
+=======================================
+----------------
+-- Movitation --
+----------------
+
+------------------------
+-- Additional Feature --
+------------------------
+Use Heuristic Scheduling, Job Replication and Hierarchical Architecture to address straggler problems.
+
+----------------------
+-- Technique to use --
+----------------------
+We first divide the straggler problems by their cause.
+Transient Stragglers -- Due to background OS activities
+Permanent Stragglers -- Due to Hardware Configuration
+
+Different straggler will be solved using different technique, but we first need a technique to distinguish
+them. We proposed Hierarchical Architecture for this purpose.
+
+Hierarchical Architecture:
+There is an assumption that must hold when applying this technique, that is, a worker machine has more than
+one thread. We think this assumption is reasonable for morden computers. Instead of treating a worker thread
+as an independent worker, we treat a worker machine as an independent worker. In this way, the time needed
+for finishing a task is averaged out by the number of thread a worker has (after solving the transient
+stragglers). Therefore, a slow worker has a much higher chance to be a Permanent Straggler than a Transient
+Straggler and hence we have distinguish them.
+
+Heuristic Scheduling:
+The aim of Heuristic Scheduling is to solve the Permanent Straggler in a global level (among workers). A
+scheduler (independent or on server side) will record the time used by each worker for an iteration and
+use this to adjust the workload of each worker in the following iteration. The schedule will adopt to the
+nearly idea workload for each worker after some iterations and this solved the Permanent Stragglers.
+
+Job Stealing:
+The Job Stealing is used locally (within a worker). The worker will monitor its threads over an iteration.
+If a thread is much slower than others, the worker will transfer the remaining jobs of the straggler to
+another thread once that thread has finished its original jobs. This try to solve the Transient Stragglers.
+
+-------------------
+-- Existing Work --
+-------------------
+
+--------------
+-- Timeline --
+--------------
