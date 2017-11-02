@@ -1,20 +1,18 @@
 =======================================
 ===   Additional Feature Proposal   ===
 =======================================
-----------------
--- Movitation --
-----------------
-A powerful parameter sever for large-scale data processing.
-// Add more... (What is straggler, why are we trying to solve it?)
 
 ------------------------
--- Additional Feature --
+-- Problem Defination --
 ------------------------
 Use Heuristic Scheduling, Job Stealing/Cloning and Hierarchical Architecture to address straggler problems.
+The goal is to dynamically modify the job assignment so as to optimize the performance of the parameter server in
+a Heterogeneous Cluster and exploit the advantage of multi-thread in a machine to mitigate the effect of Transient
+Stragglers (defined below).
 
-----------------------
--- Technique to use --
-----------------------
+-------------
+-- Outline --
+-------------
 We first divide the straggler problems by their cause.
 Transient Stragglers -- Due to background activities, OS, etc.
 Permanent Stragglers -- Due to Hardware Partial Failure or Heterogeneous Cluster
@@ -44,16 +42,9 @@ its task, then it will steal any unstarted task from the slowest thread or start
 running on the slowest thread, depending on whether there is any unstarted task. This tries to solve the 
 Transient Stragglers.
 
--------------------
--- Existing Work --
--------------------
-Microsoft:Multiverso
-Tencent:angel
-// Add More... (What have been proposed to address the straggler problem?)
-
---------------
--- Timeline --
---------------
+------------------------
+-- Tentative Schedule --
+------------------------
 Week 11 Implement Hierarchical Architecture
 Week 12 Implement Job Stealing
 Week 13 Implement Heuristic Scheduling
