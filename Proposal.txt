@@ -1,23 +1,23 @@
 =======================================
 ===   Additional Feature Proposal   ===
 =======================================
-----------------
--- Movitation --
-----------------
 
 ------------------------
--- Additional Feature --
+-- Problem Defination --
 ------------------------
-Use Heuristic Scheduling, Job Stealing and Hierarchical Architecture to address straggler problems.
+Use Heuristic Scheduling, Job Stealing/Cloning and Hierarchical Architecture to address straggler problems.
+The goal is to dynamically modify the job assignment so as to optimize the performance of the parameter server in
+a Heterogeneous Cluster and exploit the advantage of multi-thread in a machine to mitigate the effect of Transient
+Stragglers (defined below).
 
-----------------------
--- Technique to use --
-----------------------
+-------------
+-- Outline --
+-------------
 We first divide the straggler problems by their cause.
-Transient Stragglers -- Due to background OS activities
-Permanent Stragglers -- Due to Hardware Configuration
+Transient Stragglers -- Due to background activities, OS, etc.
+Permanent Stragglers -- Due to Hardware Partial Failure or Heterogeneous Cluster
 
-Different straggler will be solved using different technique, but we first need a technique to distinguish
+Different straggler will be solved using different technique, but we first need a method to distinguish
 them. We proposed Hierarchical Architecture for this purpose.
 
 Hierarchical Architecture:
@@ -34,18 +34,17 @@ scheduler (independent or on server side) will record the time used by each work
 use this to adjust the workload of each worker in the following iteration. The schedule will adopt to the
 nearly idea workload for each worker after some iterations and this solved the Permanent Stragglers.
 
-Job Stealing:
-The Job Stealing is used locally (within a worker). The worker will monitor its threads over an iteration.
-If a thread is much slower than others, the worker will transfer the remaining jobs of the straggler to
-another thread once that thread has finished its original jobs. This try to solve the Transient Stragglers.
+Job Stealing/Cloning:
+The Job Stealing/Cloning is used locally (within a worker). If a worker thread does not get a task in the
+beginning of an iteration, i.e. the number of tasks the worker received is less than the number of threads
+it has, then this thread will clone a task from another thread. During an iteration, if a thread has finished
+its task, then it will steal any unstarted task from the slowest thread or start a clone of the task that is 
+running on the slowest thread, depending on whether there is any unstarted task. This tries to solve the 
+Transient Stragglers.
 
--------------------
--- Existing Work --
--------------------
-
---------------
--- Timeline --
---------------
+------------------------
+-- Tentative Schedule --
+------------------------
 Week 11 Implement Hierarchical Architecture
 Week 12 Implement Job Stealing
 Week 13 Implement Heuristic Scheduling
