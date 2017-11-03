@@ -26,7 +26,7 @@ TEST_F(TestBSPModel, CheckConstructor) {
   std::unique_ptr<AbstractModel> model(new BSPModel(model_id, std::move(storage), &reply_queue));
 }
 
-TEST_F(TestBSPModel, DISABLED_CheckGetAndAdd) {
+TEST_F(TestBSPModel, CheckGetAndAdd) {
   ThreadsafeQueue<Message> reply_queue;
   int model_id = 0;
   std::unique_ptr<AbstractStorage> storage(new MapStorage<int>());

@@ -6,6 +6,8 @@
 #include "server/util/pending_buffer.hpp"
 #include "server/util/progress_tracker.hpp"
 
+#include "server/consistency/ssp_model.hpp"
+
 #include <map>
 #include <vector>
 
@@ -29,6 +31,9 @@ class BSPModel : public AbstractModel {
   int GetAddPendingSize();
 
  private:
+  
+  std::unique_ptr<SSPModel> model_;
+  
   uint32_t model_id_;
 
   ThreadsafeQueue<Message>* reply_queue_;
