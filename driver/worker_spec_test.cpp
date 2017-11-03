@@ -18,7 +18,7 @@ class TestWorkerSpec : public testing::Test {
   void TearDown() {}
 };
 
-TEST_F(TestWorkerSpec, Init) {
+TEST_F(TestWorkerSpec, DISABLED_Init) {
   // 3 workers on node 0, 2 workers on node 1.
   // {0, {0,1,2}}, {1, {3,4}}
   WorkerSpec worker_spec({{0, 3}, {1, 2}});
@@ -26,7 +26,7 @@ TEST_F(TestWorkerSpec, Init) {
   EXPECT_EQ(worker_spec.HasLocalWorkers(1), true);
 }
 
-TEST_F(TestWorkerSpec, GetWorker) {
+TEST_F(TestWorkerSpec, DISABLED_GetWorker) {
   // 3 workers on node 0, 2 workers on node 1.
   // node_to_workers_ : {0, {0,1,2}}, {1, {3,4}}
   // node_to_threads_ : {0, {100,101,102}}, {1, {1100,1101}}
@@ -48,7 +48,7 @@ TEST_F(TestWorkerSpec, GetWorker) {
   EXPECT_EQ(it1->second[1], 4);
 }
 
-TEST_F(TestWorkerSpec, InsertWorkerIdThreadId) {
+TEST_F(TestWorkerSpec, DISABLED_InsertWorkerIdThreadId) {
   // 3 workers on node 0, 2 workers on node 1.
   // node_to_workers_ : {0, {0,1,2}}, {1, {3,4}}
   // node_to_threads_ : {0, {100,101,102}}, {1, {1100,1101}}
