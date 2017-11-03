@@ -5,22 +5,28 @@
 ------------------------
 -- Problem Defination --
 ------------------------
-Use Heuristic Scheduling, Job Stealing/Cloning and Hierarchical Architecture to address straggler problems.
-The goal is to dynamically modify the job assignment so as to optimize the performance of the parameter server in
-a Heterogeneous Cluster and exploit the advantage of multi-thread in a machine to mitigate the effect of Transient
-Stragglers (defined below).
+
+Addressing the Straggler Problem : Straggler Identification
+
+One of the challenges faced by parameter server is the problem of stragglers, which can significantly increase the job completion time. Various proactive and reactive straggler mitigation techniques have been developed to address the problem. Current additional feature is to address the straggler problem with better Straggler avoidence and straggler mitigation.
+
+We first divide the straggler problems by their cause.
+Transient Stragglers -- Due to background activities, OS, etc. and it could be recovered by time. Unpredictable.
+Permanent Stragglers -- Due to Hardware Partial Failure or Heterogeneous Cluster configuration. Predictable.
+
+The goal is to adaptively modify the job assignment so as to optimize the performance of the parameter server in
+a Heterogeneous cluster environment and exploit the advantage of multi-thread in a machine to mitigate the effect of Transient
+Stragglers.
 
 -------------
 -- Outline --
 -------------
-We first divide the straggler problems by their cause.
-Transient Stragglers -- Due to background activities, OS, etc.
-Permanent Stragglers -- Due to Hardware Partial Failure or Heterogeneous Cluster
 
 Different straggler will be solved using different technique, but we first need a method to distinguish
 them. We proposed Hierarchical Architecture for this purpose.
 
 Hierarchical Architecture:
+
 There is an assumption that must hold when applying this technique, that is, a worker machine has more than
 one thread. We think this assumption is reasonable for morden computers. Instead of treating a worker thread
 as an independent worker, we treat a worker machine as an independent worker. In this way, the time needed
@@ -28,24 +34,62 @@ for finishing a task is averaged out by the number of thread a worker has (after
 stragglers). Therefore, a slow worker has a much higher chance to be a Permanent Straggler than a Transient
 Straggler and hence we have distinguish them.
 
-Heuristic Scheduling:
+For premanent straggler migitation:
+
+Heuristic Scheduling
 The aim of Heuristic Scheduling is to solve the Permanent Straggler in a global level (among workers). A
 scheduler (independent or on server side) will record the time used by each worker for an iteration and
 use this to adjust the workload of each worker in the following iteration. The schedule will adopt to the
 nearly idea workload for each worker after some iterations and this solved the Permanent Stragglers.
 
-Job Stealing/Cloning:
-The Job Stealing/Cloning is used locally (within a worker). If a worker thread does not get a task in the
+
+For transient straggler migitation:
+
+Job Stealing
+The Job Stealing is used locally (within a worker). If a worker thread does not get a task in the
 beginning of an iteration, i.e. the number of tasks the worker received is less than the number of threads
 it has, then this thread will clone a task from another thread. During an iteration, if a thread has finished
-its task, then it will steal any unstarted task from the slowest thread or start a clone of the task that is 
-running on the slowest thread, depending on whether there is any unstarted task. This tries to solve the 
+its task, then it will steal any unstarted task from the slowest thread or start a clone of the task that is
+running on the slowest thread, depending on whether there is any unstarted task. This tries to solve the
 Transient Stragglers.
+
+Job Cloning
+The Job Cloning will be used globally (within all workers). If the resource is adequate, the parameter server can assign more worker thread to work on the same task, and accept the reply whenever the earliest. This design compromising the additional resources to tackle the straggler. This tries to solve the Transient Stragglers.
+
+-------------------------------
+--  Additional Improvement:  --
+-------------------------------
+
+Implemented Jump Consistent Hash Algorithm (A Fast, Minimal Memory, Consistent Hash Algorithm, John Lamping, Eric Veach, Google https://arxiv.org/ftp/arxiv/papers/1406/1406.2294.pdf)
+
+Implemented multi-producer, multi-consumer lock-free queue to replace ThreadSafeQueue (By MoodyCamel)
+http://moodycamel.com/blog/2014/a-fast-general-purpose-lock-free-queue-for-c++
+
+-------------------------
+--  Referenced Papers  --
+-------------------------
+
+Addressing the straggler problem for iterative convergent parallel ML
+Author: Harlap, Aaron; Cui, Henggang; Dai, Wei; Wei, Jinliang; Ganger, Gregory R.; Gibbons, Phillip B.; Gibson, Garth A.; Xing, Eric P.
+https://dl.acm.org/citation.cfm?id=2987554
+
+Partial Clones for Stragglers in MapReduce
+Author: Li, Jia; Wang, Changjian; Li, Dongsheng; Huang, Zhen
+https://link.springer.com/chapter/10.1007/978-3-662-46248-5_14
+
+An Improved Straggler Identification Scheme for Data-Intensive Computing on Cloud Platforms
+Author: Wei Dai *, Ibrahim Ibrahim*, Mostafa Bassiouni
+http://ieeexplore.ieee.org/document/7987200/
+
+Effective straggler mitigation: attack of the clones
+Author: Ganesh Ananthanarayanan, Ali Ghodsi, Scott Shenker, Ion Stoica
+https://www.microsoft.com/en-us/research/wp-content/uploads/2016/11/dolly_nsdi13.pdf
+
 
 ------------------------
 -- Tentative Schedule --
 ------------------------
 Week 11 Implement Hierarchical Architecture
-Week 12 Implement Job Stealing
+Week 12 Implement Job Stealing / Job Cloning
 Week 13 Implement Heuristic Scheduling
 Week 14 Reserved for any delay
