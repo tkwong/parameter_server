@@ -70,5 +70,22 @@ TEST_F(TestSimpleIdMapper, AllocateDeallocateThread) {
   EXPECT_EQ(id_mapper.GetNodeIdForThread(SimpleIdMapper::kMaxThreadsPerNode + SimpleIdMapper::kMaxBgThreadsPerNode), 1);
 }
 
+TEST_F(TestSimpleIdMapper, GetAllServerThreads)
+{
+    Node n1{0, "worker1", 12352};
+    Node n2{1, "worker1", 12353};
+    Node n3{3, "worker1", 12354};
+
+    SimpleIdMapper id_mapper(n1, {n1, n2, n3});
+    id_mapper.Init(1);
+    std::vector<uint32_t> expected({0, 1000, 3000});
+    EXPECT_EQ(id_mapper.GetAllServerThreads(), expected);
+
+    SimpleIdMapper id_mapper2(n1, {n1, n2, n3});
+    id_mapper2.Init(3);
+    std::vector<uint32_t> expected2({0, 1, 2, 1000, 1001, 1002, 3000, 3001, 3002});
+    EXPECT_EQ(id_mapper2.GetAllServerThreads(), expected2);
+}
+
 }  // namespace
 }  // namespace csci5570
