@@ -32,12 +32,12 @@ class FakeIdMapper : public AbstractIdMapper {
   virtual uint32_t GetNodeIdForThread(uint32_t tid) override { return tid; }
 };
 
-TEST_F(TestEngine, Construct) {
+TEST_F(TestEngine, DISABLED_Construct) {
   Node node{0, "localhost", 12353};  // node: id 0, host localhost, port 12353
   Engine engine(node, {node});
 }
 
-TEST_F(TestEngine, StartMailbox) {
+TEST_F(TestEngine, DISABLED_StartMailbox) {
   Node node{0, "localhost", 12353};
   Engine engine(node, {node});
   engine.CreateIdMapper();
@@ -46,14 +46,14 @@ TEST_F(TestEngine, StartMailbox) {
   engine.StopMailbox();
 }
 
-TEST_F(TestEngine, StartEverything) {
+TEST_F(TestEngine, DISABLED_StartEverything) {
   Node node{0, "localhost", 12353};
   Engine engine(node, {node});
   engine.StartEverything();
   engine.StopEverything();
 }
 
-TEST_F(TestEngine, MultipleStartEverything) {  // start three engines on the localhost
+TEST_F(TestEngine, DISABLED_MultipleStartEverything) {  // start three engines on the localhost
   std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354}, {2, "localhost", 12355}};
 
   std::vector<std::thread> threads(nodes.size());
@@ -69,7 +69,7 @@ TEST_F(TestEngine, MultipleStartEverything) {  // start three engines on the loc
   }
 }
 
-TEST_F(TestEngine, SimpleTaskMapStorage) {
+TEST_F(TestEngine, DISABLED_SimpleTaskMapStorage) {
   Node node{0, "localhost", 12353};
   Engine engine(node, {node});
   // start
@@ -87,7 +87,7 @@ TEST_F(TestEngine, SimpleTaskMapStorage) {
   engine.StopEverything();
 }
 
-TEST_F(TestEngine, MultipleTasks) {  // simulate multiple instances of engine running a distributed task
+TEST_F(TestEngine, DISABLED_MultipleTasks) {  // simulate multiple instances of engine running a distributed task
   std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354}, {2, "localhost", 12355}};
 
   std::vector<std::thread> threads(nodes.size());
@@ -115,7 +115,7 @@ TEST_F(TestEngine, MultipleTasks) {  // simulate multiple instances of engine ru
   }
 }
 
-TEST_F(TestEngine, KVClientTableMapStorage) {
+TEST_F(TestEngine, DISABLED_KVClientTableMapStorage) {
   Node node{0, "localhost", 12353};
   Engine engine(node, {node});
   // start
