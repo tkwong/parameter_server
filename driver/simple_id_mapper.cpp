@@ -77,7 +77,10 @@ std::vector<uint32_t> SimpleIdMapper::GetWorkerThreadsForId(uint32_t node_id) {
         return std::vector<uint32_t>();
 }
 std::vector<uint32_t> SimpleIdMapper::GetAllServerThreads() {
-  // TODO
+    auto result = std::vector<uint32_t>();
+    for (auto it=node2server_.begin(); it!=node2server_.end(); it++)
+        result.insert(result.end(), it->second.begin(), it->second.end());
+    return result;
 }
 
 const uint32_t SimpleIdMapper::kMaxNodeId;
