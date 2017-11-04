@@ -1,3 +1,5 @@
+#pragma once
+
 #include "server/abstract_model.hpp"
 
 #include "base/message.hpp"
