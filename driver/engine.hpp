@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "base/abstract_partition_manager.hpp"
+#include "base/consistent_hashing_partition_manager.cpp"
 #include "base/node.hpp"
 #include "comm/mailbox.hpp"
 #include "comm/sender.hpp"
@@ -10,13 +11,18 @@
 #include "driver/simple_id_mapper.hpp"
 #include "driver/worker_spec.hpp"
 #include "server/server_thread.hpp"
+#include "server/map_storage.hpp"
+#include "server/vector_storage.hpp"
+#include "server/consistency/asp_model.hpp"
+#include "server/consistency/bsp_model.hpp"
+#include "server/consistency/ssp_model.hpp"
 #include "worker/abstract_callback_runner.hpp"
 #include "worker/worker_thread.hpp"
 
 namespace csci5570 {
 
 enum class ModelType { SSP, BSP, ASP };
-enum class StorageType { Map };  // May have Vector
+enum class StorageType { Map, Vector };  // May have Vector
 
 class Engine {
  public:
@@ -85,9 +91,43 @@ class Engine {
    * @return                    the created table(model) id
    */
   template <typename Val>
-  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager> partition_manager, ModelType model_type,
-                       StorageType storage_type, int model_staleness = 0) {
-    // TODO
+  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager> partition_manager, 
+                       ModelType model_type, StorageType storage_type, int model_staleness = 0) 
+  {
+    RegisterPartitionManager(model_count_, std::move(partition_manager));
+    for (auto server_ptr : server_thread_group_)
+    {
+        AbstractStorage* storage_ptr;
+        switch(storage_type)
+        {
+            case(StorageType::Map):
+                storage_ptr = new MapStorage<Val>();
+                break;
+            case(StorageType::Vector):
+                storage_ptr = new VectorStorage<Val>();
+                break;
+        }
+
+        AbstractModel* model_ptr;
+        switch(model_type)
+        {
+            case(ModelType::SSP):
+                model_ptr = new SSPModel(model_count_, std::unique_ptr<AbstractStorage>(storage_ptr),
+                                         model_staleness, sender_->GetMessageQueue());
+                break;
+            case(ModelType::BSP):
+                model_ptr = new BSPModel(model_count_, std::unique_ptr<AbstractStorage>(storage_ptr),
+                                         sender_->GetMessageQueue());
+                break;
+            case(ModelType::ASP):
+                model_ptr = new ASPModel(model_count_, std::unique_ptr<AbstractStorage>(storage_ptr),
+                                         sender_->GetMessageQueue());
+                break;
+        }
+
+        server_ptr->RegisterModel(model_count_, std::unique_ptr<AbstractModel>(model_ptr));
+    }
+    return model_count_++;
   }
 
   /**
@@ -101,8 +141,12 @@ class Engine {
    * @return                    the created table(model) id
    */
   template <typename Val>
-  uint32_t CreateTable(ModelType model_type, StorageType storage_type, int model_staleness = 0) {
-    // TODO
+  uint32_t CreateTable(ModelType model_type, StorageType storage_type, int model_staleness = 0)
+  {
+    AbstractPartitionManager* pm_ptr = 
+        new ConsistentHashingPartitionManager(id_mapper_.get()->GetAllServerThreads());
+    return CreateTable<Val>(std::unique_ptr<AbstractPartitionManager>(pm_ptr), model_type, 
+                storage_type, model_staleness);
   }
 
   /**
@@ -145,7 +189,7 @@ class Engine {
   std::unique_ptr<AbstractCallbackRunner> callback_runner_;
   std::unique_ptr<AbstractWorkerThread> worker_thread_;
   // server elements
-  std::vector<ServerThread> server_thread_group_;
+  std::vector<ServerThread*> server_thread_group_;
   size_t model_count_ = 0;
 };
 

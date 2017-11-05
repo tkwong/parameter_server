@@ -7,7 +7,7 @@
 
 namespace csci5570 {
 
-class CallbackRunner: AbstractCallbackRunner {
+class CallbackRunner: public AbstractCallbackRunner {
     public:
         CallbackRunner() {}
         
