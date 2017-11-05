@@ -20,12 +20,8 @@ namespace csci5570{
 			CHECK_EQ(typed_keys.size(), typed_vals.size());
 			for (int i=0; i<typed_keys.size(); i++){
 	             storage_keys.insert(storage_keys.end(), typed_keys[i]);
-	             //LOG(INFO) << "hello";
-	             //LOG(INFO) << storage_keys[0];
 	             storage_vals.insert(storage_vals.end(), typed_vals[i]);
 	             LOG(INFO) << "vals here";
-	             LOG(INFO) << storage_vals[i];
-	             LOG(INFO) << typed_vals[i];
 			}
 			
 		} 
@@ -35,12 +31,8 @@ namespace csci5570{
      			for (int m=0; m<typed_keys.size(); m++){
      				if (storage_keys[i] == typed_keys[m]){
 		        		reply_vals[m] = storage_vals[i];
-		        	    //LOG(INFO) << "vals here output";
-	                 	//LOG(INFO) << reply_vals[m];
 
 	                 }
-		    		//else
-		    			//break; //If a key does not exist, return the values founded so far.
      			}
 	    	}
 	    	LOG(INFO) << "berfore return";

@@ -37,7 +37,19 @@ TEST_F(TestParser, DISABLED_libsvm) {
 
     EXPECT_EQ(sample1.x_.sum(), expected.sum());
     EXPECT_EQ(sample1.y_, -1);
+
 }
+
+TEST_F(TestParser, DISABLED_mnist) {
+    boost::string_ref line1 = "0000 0000 0000 0000 0000 0031 eefd fdfd";
+    boost::string_ref line2 = "0000 0000 0000 0000 0000 54b9 9f97 3c24";
+    
+    EXPECT_EQ(sample1.x_.sum(), expected.sum());
+    EXPECT_EQ(sample1.y_, -1);
+
+}
+
+
 
 } // namespace
 } // namespace lib

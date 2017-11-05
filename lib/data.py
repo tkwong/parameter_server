@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+In [6]: from pyechonest import catalog
+In [7]: cat = catalog.Catalog('CACNYVZ1332EB0BA9D')
+In [8]: cat.read()
+Out[8]: 
+{u'id': u'CACNYVZ1332EB0BA9D',
+ u'items': [{u'artist_id': u'ARB6OGR1187FB4D43D',
+             u'artist_name': u'M83',
+             u'date_added': u'2011-10-23T15:59:59',
+             u'foreign_id': u'CACNYVZ1332EB0BA9D:song:10286694_usercat',
+             u'play_count': 1,
+             u'request': {u'artist_id': u'ARB6OGR1187FB4D43D',
+                          u'item_id': u'10286694_usercat',
+                          u'song_id': u'SOFMYVK12A58A7A675'},
+             u'song_id': u'SOFMYVK12A58A7A675',
+             u'song_name': u'Skin Of The Night'},
+            {u'artist_id': u'ARK9LNI1187FB4D116',
+             u'artist_name': u'A*Teens',
+             u'date_added': u'2011-10-23T15:59:59',
+             u'foreign_id': u'CACNYVZ1332EB0BA9D:song:11559594_usercat',
+             u'request': {u'artist_id': u'ARK9LNI1187FB4D116',
+                          u'item_id': u'11559594_usercat',
+                          u'song_id': u'SOIYYWE12AB0182FD8'},
+             u'song_id': u'SOIYYWE12AB0182FD8',
+             u'song_name': u'One Night In Bangkok'},
+            ...................
+            {u'artist_id': u'ARV9QVP1187FB54F24',
+             u'artist_name': u'Booty Luv',
+             u'date_added': u'2011-10-23T15:59:59',
+             u'foreign_id': u'CACNYVZ1332EB0BA9D:song:3878364_usercat',
+             u'play_count': 1,
+             u'request': {u'artist_id': u'ARV9QVP1187FB54F24',
+                          u'item_id': u'3878364_usercat',
+                          u'song_id': u'SOHMQGF12A58A7BFD2'},
+             u'song_id': u'SOHMQGF12A58A7BFD2',
+             u'song_name': u'Boogie 2Nite'},
+            {u'artist_id': u'ARMCO9E1187B9B7314',
+             u'artist_name': u'Midnight Juggernauts',
+             u'date_added': u'2011-10-23T15:59:59',
+             u'foreign_id': u'CACNYVZ1332EB0BA9D:song:9884334_usercat',
+             u'play_count': 1,
+             u'request': {u'artist_id': u'ARMCO9E1187B9B7314',
+                          u'item_id': u'9884334_usercat',
+                          u'song_id': u'SOYTVDF12A8AE487E0'},
+             u'song_id': u'SOYTVDF12A8AE487E0',
+             u'song_name': u'Into The Galaxy (Album Version)'}],
+ u'name': u'01056e159da428c96c7db9f11377dc8df430f2ba_tmp_catalog',
+ u'start': 0,
+ u'total': 22,
+ u'type': u'song'}

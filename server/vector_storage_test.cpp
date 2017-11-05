@@ -36,9 +36,6 @@ TEST_F(TestVectorStorage, AddGetInt) {
   for (int index = 0; index < s_keys.size(); index++) {
     EXPECT_EQ(rep_keys[index], s_keys[index]);
     EXPECT_EQ(rep_vals[index], s_vals[index]);
-    //LOG(INFO) << "test ______________";
-    //LOG(INFO) << rep_vals[index];
-    //LOG(INFO) << rep_keys[index];
   }
 }
 
