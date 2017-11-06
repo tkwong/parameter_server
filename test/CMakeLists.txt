@@ -27,3 +27,12 @@ if(LIBHDFS3_FOUND)
     set_property(TARGET TestRead PROPERTY CXX_STANDARD 11)
     add_dependencies(TestRead ${external_project_dependencies})
 endif(LIBHDFS3_FOUND)
+
+add_executable(TestMnist test_mnist.cpp)
+# target_link_libraries(TestMnist csci5570)
+# target_link_libraries(TestMnist ${HUSKY_EXTERNAL_LIB})
+# set_property(TARGET TestMnist PROPERTY CXX_STANDARD 11)
+target_compile_definitions(TestMnist PRIVATE MNIST_DATA_LOCATION="${CMAKE_CURRENT_LIST_DIR}/data/")
+add_dependencies(TestMnist ${external_project_dependencies})
+
+
