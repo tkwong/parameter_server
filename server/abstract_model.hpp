@@ -4,7 +4,7 @@
 #include "base/message.hpp"
 #include "base/threadsafe_queue.hpp"
 
-namespace csci5570 {
+namespace flexps {
 
 class AbstractModel {
  public:
@@ -16,4 +16,4 @@ class AbstractModel {
   virtual ~AbstractModel() {}
 };
 
-}  // namespace csci5570
+}  // namespace flexps

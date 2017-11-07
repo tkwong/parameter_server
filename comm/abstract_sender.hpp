@@ -2,7 +2,7 @@
 
 #include "base/message.hpp"
 
-namespace csci5570 {
+namespace flexps {
 
 class AbstractSender {
  public:
@@ -12,4 +12,4 @@ class AbstractSender {
   virtual void Stop() = 0;
 };
 
-}  // namespace csci5570
+}  // namespace flexps

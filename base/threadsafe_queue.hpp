@@ -5,7 +5,7 @@
 #include <mutex>
 #include <queue>
 
-namespace csci5570 {
+namespace flexps {
 
 template <typename T>
 class ThreadsafeQueue {
@@ -42,4 +42,4 @@ class ThreadsafeQueue {
   std::condition_variable cond_;
 };
 
-}  // namespace csci5570
+}  // namespace flexps

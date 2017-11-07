@@ -1,183 +1,90 @@
 #pragma once
 
+#include <memory>
 #include <vector>
+#include <algorithm>
 
-#include "base/abstract_partition_manager.hpp"
-#include "base/consistent_hashing_partition_manager.cpp"
 #include "base/node.hpp"
+#include "base/node_util.hpp"
+#include "worker/worker_helper_thread.hpp"
+#include "worker/app_blocker.hpp"
+#include "worker/simple_range_manager.hpp"
+#include "server/server_thread.hpp"
+#include "server/server_thread_group.hpp"
+#include "server/map_storage.hpp"
+#include "server/vector_storage.hpp"
+#include "server/ssp_model.hpp"
+#include "server/bsp_model.hpp"
+#include "server/asp_model.hpp"
+#include "server/sparsessp/sparse_ssp_model.hpp"
+#include "server/sparsessp/abstract_sparse_ssp_recorder.hpp"
+#include "server/sparsessp/unordered_map_sparse_ssp_recorder.hpp"
+#include "server/sparsessp/vector_sparse_ssp_recorder.hpp"
 #include "comm/mailbox.hpp"
 #include "comm/sender.hpp"
 #include "driver/ml_task.hpp"
 #include "driver/simple_id_mapper.hpp"
+#include "driver/info.hpp"
 #include "driver/worker_spec.hpp"
-#include "server/server_thread.hpp"
-#include "server/map_storage.hpp"
-#include "server/vector_storage.hpp"
-#include "server/consistency/asp_model.hpp"
-#include "server/consistency/bsp_model.hpp"
-#include "server/consistency/ssp_model.hpp"
-#include "worker/abstract_callback_runner.hpp"
-#include "worker/worker_thread.hpp"
 
-namespace csci5570 {
+namespace flexps {
 
-enum class ModelType { SSP, BSP, ASP };
-enum class StorageType { Map, Vector };  // May have Vector
+enum class ModelType {
+  SSP, BSP, ASP, SparseSSP
+};
+enum class StorageType {
+  Map, Vector
+};
+enum class SparseSSPRecorderType {
+  None, Map, Vector
+};
+
 
 class Engine {
  public:
-  /**
-   * Engine constructor
-   *
-   * @param node     the current node
-   * @param nodes    all nodes in the cluster
-   */
   Engine(const Node& node, const std::vector<Node>& nodes) : node_(node), nodes_(nodes) {}
-  /**
+  /*
    * The flow of starting the engine:
    * 1. Create an id_mapper and a mailbox
    * 2. Start Sender
-   * 3. Create ServerThreads and WorkerThreads
+   * 3. Create ServerThreads and WorkerHelperThreads
    * 4. Register the threads to mailbox through ThreadsafeQueue
-   * 5. Start the communication threads: bind and connect to all other nodes
-   *
-   * @param num_server_threads_per_node the number of server threads to start on each node
+   * 5. Start the mailbox: bind and connect to all other nodes
    */
   void StartEverything(int num_server_threads_per_node = 1);
   void CreateIdMapper(int num_server_threads_per_node = 1);
   void CreateMailbox();
   void StartServerThreads();
-  void StartWorkerThreads();
+  void StartWorkerHelperThreads();
   void StartMailbox();
   void StartSender();
 
-  /**
+  /*
    * The flow of stopping the engine:
    * 1. Stop the Sender
    * 2. Stop the mailbox: by Barrier() and then exit
    * 3. The mailbox will stop the corresponding registered threads
-   * 4. Stop the ServerThreads and WorkerThreads
+   * 4. Stop the ServerThreads and WorkerHelperThreads
    */
   void StopEverything();
   void StopServerThreads();
-  void StopWorkerThreads();
+  void StopWorkerHelperThreads();
   void StopSender();
   void StopMailbox();
-
-  /**
-   * Synchronization barrier for processes
-   */
+ 
   void Barrier();
-  /**
-   * Create the whole picture of the worker group, and register the workers in the id mapper
-   *
-   * @param worker_alloc    the worker allocation information
-   */
   WorkerSpec AllocateWorkers(const std::vector<WorkerAlloc>& worker_alloc);
-
-  /**
-   * Create the partitions of a model on the local servers
-   * 1. Assign a table id (incremental and consecutive)
-   * 2. Register the partition manager to the model
-   * 3. For each local server thread maintained by the engine
-   *    a. Create a storage according to <storage_type>
-   *    b. Create a model according to <model_type>
-   *    c. Register the model to the server thread
-   *
-   * @param partition_manager   the model partition manager
-   * @param model_type          the consistency of model - bsp, ssp, asp
-   * @param storage_type        the storage type - map, vector...
-   * @param model_staleness     the staleness for ssp model
-   * @return                    the created table(model) id
-   */
-  template <typename Val>
-  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager> partition_manager, 
-                       ModelType model_type, StorageType storage_type, int model_staleness = 0) 
-  {
-    RegisterPartitionManager(model_count_, std::move(partition_manager));
-    for (auto server_ptr : server_thread_group_)
-    {
-        AbstractStorage* storage_ptr;
-        switch(storage_type)
-        {
-            case(StorageType::Map):
-                storage_ptr = new MapStorage<Val>();
-                break;
-            case(StorageType::Vector):
-                storage_ptr = new VectorStorage<Val>();
-                break;
-        }
-
-        AbstractModel* model_ptr;
-        switch(model_type)
-        {
-            case(ModelType::SSP):
-                model_ptr = new SSPModel(model_count_, std::unique_ptr<AbstractStorage>(storage_ptr),
-                                         model_staleness, sender_->GetMessageQueue());
-                break;
-            case(ModelType::BSP):
-                model_ptr = new BSPModel(model_count_, std::unique_ptr<AbstractStorage>(storage_ptr),
-                                         sender_->GetMessageQueue());
-                break;
-            case(ModelType::ASP):
-                model_ptr = new ASPModel(model_count_, std::unique_ptr<AbstractStorage>(storage_ptr),
-                                         sender_->GetMessageQueue());
-                break;
-        }
-
-        server_ptr->RegisterModel(model_count_, std::unique_ptr<AbstractModel>(model_ptr));
-    }
-    return model_count_++;
-  }
-
-  /**
-   * Create the partitions of a model on the local servers using a default partitioning scheme
-   * 1. Create a default partition manager
-   * 2. Create a table with the partition manager
-   *
-   * @param model_type          the consistency of model - bsp, ssp, asp
-   * @param storage_type        the storage type - map, vector...
-   * @param model_staleness     the staleness for ssp model
-   * @return                    the created table(model) id
-   */
-  template <typename Val>
-  uint32_t CreateTable(ModelType model_type, StorageType storage_type, int model_staleness = 0)
-  {
-    AbstractPartitionManager* pm_ptr = 
-        new ConsistentHashingPartitionManager(id_mapper_.get()->GetAllServerThreads());
-    return CreateTable<Val>(std::unique_ptr<AbstractPartitionManager>(pm_ptr), model_type, 
-                storage_type, model_staleness);
-  }
-
-  /**
-   * Reset workers in the specified model so that each model knows the workers with the right of access
-   */
+  template<typename Val>
+  void CreateTable(uint32_t table_id, const std::vector<third_party::Range>& ranges,
+      ModelType model_type, StorageType storage_type, int model_staleness = 0, int speculation = 0,
+      SparseSSPRecorderType sparse_ssp_recorder_type = SparseSSPRecorderType::None);
   void InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_ids);
-
-  /**
-   * Run the task
-   *
-   * After starting the system, the engine run a task by starting the prescribed threads to run UDF
-   *
-   * @param task    the task to run
-   */
   void Run(const MLTask& task);
 
-  /**
-   * Returns the server thread ids
-   */
-  std::vector<uint32_t> GetServerThreadIds() { return id_mapper_->GetAllServerThreads(); }
-
  private:
-  /**
-   * Register partition manager for a model to the engine
-   *
-   * @param table_id            the model id
-   * @param partition_manager   the partition manager for the specific model
-   */
-  void RegisterPartitionManager(uint32_t table_id, std::unique_ptr<AbstractPartitionManager> partition_manager);
+  void RegisterRangeManager(uint32_t table_id, const std::vector<third_party::Range>& ranges);
 
-  std::map<uint32_t, std::unique_ptr<AbstractPartitionManager>> partition_manager_map_;
+  std::map<uint32_t, SimpleRangeManager> range_manager_map_;
   // nodes
   Node node_;
   std::vector<Node> nodes_;
@@ -186,11 +93,60 @@ class Engine {
   std::unique_ptr<Mailbox> mailbox_;
   std::unique_ptr<Sender> sender_;
   // worker elements
-  std::unique_ptr<AbstractCallbackRunner> callback_runner_;
-  std::unique_ptr<AbstractWorkerThread> worker_thread_;
+  std::unique_ptr<AppBlocker> app_blocker_;
+  std::unique_ptr<WorkerHelperThread> worker_helper_thread_;
   // server elements
-  std::vector<ServerThread*> server_thread_group_;
-  size_t model_count_ = 0;
+  std::unique_ptr<ServerThreadGroup> server_thread_group_;
 };
 
-}  // namespace csci5570
+template<typename Val>
+void Engine::CreateTable(uint32_t table_id,
+    const std::vector<third_party::Range>& ranges,
+    ModelType model_type, StorageType storage_type, int model_staleness, int speculation,
+    SparseSSPRecorderType sparse_ssp_recorder_type) {
+  RegisterRangeManager(table_id, ranges);
+  CHECK(server_thread_group_);
+
+  CHECK(id_mapper_);
+  auto server_thread_ids = id_mapper_->GetAllServerThreads();
+  CHECK_EQ(ranges.size(), server_thread_ids.size());
+
+  for (auto& server_thread : *server_thread_group_) {
+    std::unique_ptr<AbstractStorage> storage;
+    std::unique_ptr<AbstractModel> model;
+    // Set up storage
+    if (storage_type == StorageType::Map) {
+      storage.reset(new MapStorage<Val>());
+    } else if (storage_type == StorageType::Vector){
+      auto it = std::find(server_thread_ids.begin(), server_thread_ids.end(), server_thread->GetServerId());
+      storage.reset(new VectorStorage<Val>(ranges[it - server_thread_ids.begin()]));
+    } else {
+      CHECK(false) << "Unknown storage_type";
+    }
+    // Set up model
+    if (model_type == ModelType::SSP) {
+      model.reset(new SSPModel(table_id, std::move(storage), model_staleness, server_thread_group_->GetReplyQueue()));
+    } else if (model_type == ModelType::BSP) {
+      model.reset(new BSPModel(table_id, std::move(storage), server_thread_group_->GetReplyQueue()));
+    } else if (model_type == ModelType::ASP) {
+      model.reset(new ASPModel(table_id, std::move(storage), server_thread_group_->GetReplyQueue()));
+    } else if (model_type == ModelType::SparseSSP) {
+      std::unique_ptr<AbstractSparseSSPRecorder> recorder;
+      CHECK(sparse_ssp_recorder_type != SparseSSPRecorderType::None);
+      if (sparse_ssp_recorder_type == SparseSSPRecorderType::Map) {
+        recorder.reset(new UnorderedMapSparseSSPRecorder(model_staleness, speculation));
+      } else if (sparse_ssp_recorder_type == SparseSSPRecorderType::Vector) {
+        auto it = std::find(server_thread_ids.begin(), server_thread_ids.end(), server_thread->GetServerId());
+        recorder.reset(new VectorSparseSSPRecorder(model_staleness, speculation, ranges[it - server_thread_ids.begin()]));
+      } else {
+        CHECK(false);
+      }
+      model.reset(new SparseSSPModel(table_id, std::move(storage), std::move(recorder), server_thread_group_->GetReplyQueue(), model_staleness, speculation));
+    } else {
+      CHECK(false) << "Unknown model_type";
+    }
+    server_thread->RegisterModel(table_id, std::move(model));
+  }
+}
+
+}  // namespace flexps

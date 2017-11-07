@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-namespace csci5570 {
+namespace flexps {
 
 void TestServer() {
   // This should be owned by the sender
@@ -23,6 +23,7 @@ void TestServer() {
   int model_staleness = 1;
   for (int i = 0; i < num_models; ++i) {
     for (auto& server_thread : server_thread_group) {
+      // TODO(Ruoyu Wu): Each server thread should have its own model?
       std::unique_ptr<AbstractStorage> storage(new MapStorage<int>());
       std::unique_ptr<AbstractModel> model(
           new SSPModel(i, std::move(storage), model_staleness, server_thread_group.GetReplyQueue()));
@@ -153,6 +154,6 @@ void TestServer() {
     server_thread->Stop();
   }
 }
-}  // namespace csci5570
+}  // namespace flexps
 
-int main() { csci5570::TestServer(); }
+int main() { flexps::TestServer(); }

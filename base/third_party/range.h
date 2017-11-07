@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-namespace csci5570 {
+namespace flexps {
 namespace third_party {
 
 /**
@@ -25,4 +25,4 @@ class Range {
 };
 
 }  // namespace third_party
-}  // namespace csci5570
+}  // namespace flexps

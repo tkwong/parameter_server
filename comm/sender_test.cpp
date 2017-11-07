@@ -6,7 +6,7 @@
 #include <iostream>
 #include <vector>
 
-namespace csci5570 {
+namespace flexps {
 namespace {
 
 class TestSender : public testing::Test {
@@ -73,4 +73,4 @@ TEST_F(TestSender, Send) {
 }
 
 }  // namespace
-}  // namespace csci5570
+}  // namespace flexps

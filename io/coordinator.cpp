@@ -12,25 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-
+#include "coordinator.hpp"
 #include <glog/logging.h>
-
+#include <string>
 #include "base/serialization.hpp"
-#include "io/coordinator.hpp"
 
-namespace csci5570 {
+namespace flexps {
 
 Coordinator::Coordinator(int proc_id, std::string hostname, zmq::context_t* context, std::string master_host,
                          int master_port)
-    : proc_id_(proc_id), hostname_(hostname), context_(context), master_host_(master_host), master_port_(master_port) {}
+    :  zmq_coord_(nullptr),proc_id_(proc_id), hostname_(hostname), context_(context), master_host_(master_host), master_port_(master_port) {}
 
 Coordinator::~Coordinator() {
   delete zmq_coord_;
   zmq_coord_ = nullptr;
 }
 
-void Coordinator::serve() {  // not thread-safe, must be called by only one thread at the same time
+void Coordinator::serve() {
   if (zmq_coord_)
     return;
 
@@ -43,13 +41,12 @@ void Coordinator::serve() {  // not thread-safe, must be called by only one thre
 }
 
 BinStream Coordinator::ask_master(BinStream& question, size_t type) {
-  std::lock_guard<std::mutex> lock(coord_lock_);
-  zmq_send_common(zmq_coord_, nullptr, 0, ZMQ_SNDMORE);  //
+  coord_lock_.lock();
   // Question type
+  zmq_send_common(zmq_coord_, nullptr, 0, ZMQ_SNDMORE);  //
   zmq_send_common(zmq_coord_, &type, sizeof(int32_t), ZMQ_SNDMORE);
   // Question body
   zmq_send_common(zmq_coord_, question.get_remained_buffer(), question.size());
-
   zmq::message_t msg1, msg2;
   BinStream answer;
   // receive notification
@@ -57,18 +54,19 @@ BinStream Coordinator::ask_master(BinStream& question, size_t type) {
   // receive answer to question
   zmq_recv_common(zmq_coord_, &msg2);
   answer.push_back_bytes(reinterpret_cast<char*>(msg2.data()), msg2.size());
+  coord_lock_.unlock();
 
   return answer;
 }
 
 void Coordinator::notify_master(BinStream& message, size_t type) {
-  std::lock_guard<std::mutex> lock(coord_lock_);
+  coord_lock_.lock();
   // send dummy
   zmq_send_common(zmq_coord_, nullptr, 0, ZMQ_SNDMORE);
   // send type
   zmq_send_common(zmq_coord_, &type, sizeof(int32_t), ZMQ_SNDMORE);
   // Message body
   zmq_send_common(zmq_coord_, message.get_remained_buffer(), message.size());
+  coord_lock_.unlock();
 }
-
-}  // namespace csci5570
+}

@@ -3,7 +3,7 @@
 
 #include "server/map_storage.hpp"
 
-namespace csci5570 {
+namespace flexps {
 namespace {
 
 class TestMapStorage : public testing::Test {
@@ -75,4 +75,4 @@ TEST_F(TestMapStorage, SubAddSubGet) {
 }
 
 }  // namespace
-}  // namespace csci5570
+}  // namespace flexps

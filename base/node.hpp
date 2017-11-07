@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-namespace csci5570 {
+namespace flexps {
 
 struct Node {
   uint32_t id;
@@ -19,4 +19,4 @@ struct Node {
   }
 };
 
-}  // namespace csci5570
+}  // namespace flexps

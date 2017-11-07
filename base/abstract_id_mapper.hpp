@@ -2,7 +2,7 @@
 
 #include <cinttypes>
 
-namespace csci5570 {
+namespace flexps {
 
 class AbstractIdMapper {
  public:
@@ -10,4 +10,4 @@ class AbstractIdMapper {
   virtual uint32_t GetNodeIdForThread(uint32_t tid) = 0;
 };
 
-}  // namespace csci5570
+}  // namespace flexps

@@ -3,7 +3,7 @@
 #include "base/message.hpp"
 #include "base/node.hpp"
 
-namespace csci5570 {
+namespace flexps {
 
 class AbstractMailbox {
  public:
@@ -11,4 +11,4 @@ class AbstractMailbox {
   virtual int Send(const Message& msg) = 0;
 };
 
-}  // namespace csci5570
+}  // namespace flexps

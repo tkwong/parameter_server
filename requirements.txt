@@ -1,2 +1,0 @@
-pfultz2/cget-recipes
-pfultz2/cget-boost-recipes

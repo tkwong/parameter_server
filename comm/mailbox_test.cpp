@@ -4,7 +4,7 @@
 
 #include "mailbox.hpp"
 
-namespace csci5570 {
+namespace flexps {
 namespace {
 
 class TestMailbox : public testing::Test {
@@ -150,7 +150,6 @@ TEST_F(TestMailbox, SendRecvTwoNodes) {
   th1.join();
   th2.join();
 }
-
 TEST_F(TestMailbox, ReceivingTwoNodes) {
   Node node1{0, "localhost", 32149};
   Node node2{1, "localhost", 32148};
@@ -224,10 +223,10 @@ TEST_F(TestMailbox, BarrierTwoNodes) {
 
 TEST_F(TestMailbox, BarrierFourNodes) {
   std::vector<Node> nodes{
-    {0, "localhost", 53551},
-    {1, "localhost", 53552},
-    {2, "localhost", 53553},
-    {3, "localhost", 53554}};
+    {0, "localhost", 43551},
+    {1, "localhost", 43552},
+    {2, "localhost", 43553},
+    {3, "localhost", 43554}};
 
   std::vector<std::thread> threads(nodes.size());
   for (int i = 0; i < nodes.size(); ++ i) {
@@ -250,4 +249,4 @@ TEST_F(TestMailbox, BarrierFourNodes) {
 }
 
 }  // namespace
-}  // namespace csci5570
+}  // namespace flexps

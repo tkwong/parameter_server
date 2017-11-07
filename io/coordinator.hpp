@@ -16,56 +16,20 @@
 
 #include <mutex>
 
+#include "base/serialization.hpp"
 #include "glog/logging.h"
 #include "zmq.hpp"
+#include "zmq_helper.hpp"
 
-#include "base/serialization.hpp"
-#include "base/zmq_helper.hpp"
+namespace flexps {
 
-namespace csci5570 {
-
-/**
- * HDFS coordinator on the worker side connecting file splitter and master
- * Shared among worker threads in the same process for loading distibuted files
- */
 class Coordinator {
  public:
-  /**
-   * Constructor
-   *
-   * @param proc_id      the id of the process
-   * @param hostname     the hostname of the current process
-   * @param context      zmq context for message passing
-   * @param master_host  the hostname of HDFS master
-   * @param master_port  HDFS master port number
-   *
-   */
   Coordinator(int proc_id, std::string hostname, zmq::context_t* context, std::string master_host, int master_port);
-
   ~Coordinator();
 
-  /**
-   * Build tcp connection with master
-   */
   void serve();
-
-  /**
-   * Send messages to master and get replies
-   *
-   * @param question    serialized data to send to the master
-   * @param type        message type
-   *
-   * @return            serialized response from the master
-   */
   BinStream ask_master(BinStream& question, size_t type);
-
-  /**
-   * Send notifications to master
-   *
-   * @param question    serialized data to send to the master
-   * @param type        message type
-   *
-   */
   void notify_master(BinStream& message, size_t type);
 
  private:
@@ -75,8 +39,6 @@ class Coordinator {
   std::string hostname_;
   std::string master_host_;
   zmq::context_t* context_;
-  zmq::socket_t* zmq_coord_ = nullptr;
-
-};  // class Coordinator
-
-}  // namespace csci5570
+  zmq::socket_t* zmq_coord_;
+};
+}

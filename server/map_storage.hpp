@@ -7,7 +7,7 @@
 
 #include <map>
 
-namespace csci5570 {
+namespace flexps {
 
 template <typename Val>
 class MapStorage : public AbstractStorage {
@@ -18,20 +18,15 @@ class MapStorage : public AbstractStorage {
       const third_party::SArray<char>& vals) override {
     auto typed_vals = third_party::SArray<Val>(vals);
     CHECK_EQ(typed_keys.size(), typed_vals.size());
-    // TODO
-    for (int i=0; i<typed_keys.size(); i++)
-      storage_.insert(std::make_pair(typed_keys[i], typed_vals[i]));
+    for (size_t index = 0; index < typed_keys.size(); index++) {
+      storage_[typed_keys[index]] += typed_vals[index];
+    }
   }
 
   virtual third_party::SArray<char> SubGet(const third_party::SArray<Key>& typed_keys) override {
     third_party::SArray<Val> reply_vals(typed_keys.size());
-    // TODO
-    for (int i=0; i<typed_keys.size(); i++) {
-      auto it = storage_.find(typed_keys[i]);
-      if (it != storage_.end())
-        reply_vals[i] = it->second;
-      else
-        break; //If a key does not exist, return the values founded so far.
+    for (int i = 0; i < typed_keys.size(); ++ i) {
+      reply_vals[i] = storage_[typed_keys[i]];
     }
     return third_party::SArray<char>(reply_vals);
   }
@@ -42,4 +37,4 @@ class MapStorage : public AbstractStorage {
   std::map<Key, Val> storage_;
 };
 
-}  // namespace csci5570
+}  // namespace flexps

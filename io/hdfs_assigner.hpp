@@ -6,11 +6,10 @@
 #include <string>
 #include <unordered_set>
 #include <utility>
-
 #include "hdfs/hdfs.h"
 #include "zmq.hpp"
 
-namespace csci5570 {
+namespace flexps {
 
 class HDFSBlockAssigner {
  public:
@@ -48,6 +47,7 @@ class HDFSBlockAssigner {
   std::set<int> finished_workers_;
   int num_workers_alive_;
   std::map<std::string, int> finish_dict;
+  std::map<std::string, std::unordered_set<BlkDesc>> files_locality_dict;
 
   // {task_id: {{url: {host:[{filename,offset,block_location}, {filename,offset,block_location}...]}},....}},...
   std::map<size_t, std::map<std::string, std::map<std::string, std::unordered_set<BlkDesc>>>>
@@ -59,13 +59,11 @@ class HDFSBlockAssigner {
   std::map<size_t, std::map<std::string, std::pair<std::map<std::string, size_t>, size_t>>> finish_multi_dict_;
 };
 
-}  // namespace csci5570
+}  // namespace flexps
 
 namespace std {
-
 template <>
-struct hash<csci5570::HDFSBlockAssigner::BlkDesc> {
-  size_t operator()(const csci5570::HDFSBlockAssigner::BlkDesc& t) const { return hash<string>()(t.filename); }
+struct hash<flexps::HDFSBlockAssigner::BlkDesc> {
+  size_t operator()(const flexps::HDFSBlockAssigner::BlkDesc& t) const { return hash<string>()(t.filename); }
 };
-
 }  // namespace std

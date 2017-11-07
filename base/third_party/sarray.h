@@ -11,7 +11,7 @@
 #include "range.h"
 #include "base/serialization.hpp"
 
-namespace csci5570 {
+namespace flexps {
 namespace third_party {
 
 /**
@@ -332,4 +332,4 @@ std::ostream& operator<<(std::ostream& os, const SArray<V>& obj) {
 }
 
 }  // namespace third_party
-}  // namespace csci5570
+}  // namespace flexps

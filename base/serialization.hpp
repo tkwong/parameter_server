@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace csci5570 {
+namespace flexps {
 
 class BinStream {
  public:
@@ -274,4 +274,4 @@ Value deser(BinStream& in) {
   return v;
 }
 
-}  // namespace csci5570
+}  // namespace flexps

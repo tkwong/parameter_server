@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace csci5570 {
+namespace flexps {
 
 BinStream::BinStream() : front_(0) {}
 
@@ -135,4 +135,4 @@ BinStream& operator>>(BinStream& stream, std::vector<bool>& v) {
 
 BinStream::~BinStream() {}
 
-}  // namespace csci5570
+}  // namespace flexps

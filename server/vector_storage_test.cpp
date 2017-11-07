@@ -3,7 +3,7 @@
 
 #include "server/vector_storage.hpp"
 
-namespace csci5570 {
+namespace flexps {
 namespace {
 
 class TestVectorStorage : public testing::Test {
@@ -16,8 +16,23 @@ class TestVectorStorage : public testing::Test {
   void TearDown() {}
 };
 
+TEST_F(TestVectorStorage, Create) {
+  VectorStorage<int> s({10, 20});
+  VectorStorage<float> s1({10, 20});
+  VectorStorage<double> s2({10, 20});
+}
+
+TEST_F(TestVectorStorage, Size) {
+  VectorStorage<int> s({10, 20});
+  EXPECT_EQ(s.Size(), 10);
+  VectorStorage<float> s1({10, 21});
+  EXPECT_EQ(s1.Size(), 11);
+  VectorStorage<double> s2({10, 22});
+  EXPECT_EQ(s2.Size(), 12);
+}
+
 TEST_F(TestVectorStorage, AddGetInt) {
-  VectorStorage<int> s;
+  VectorStorage<int> s({10, 20});
 
   Message m;
   third_party::SArray<Key> s_keys({13, 14, 15});
@@ -29,21 +44,18 @@ TEST_F(TestVectorStorage, AddGetInt) {
   Message m2;
   m2.AddData(s_keys);
   Message rep = s.Get(m2);
-  EXPECT_EQ(rep.data.size(), 2);
 
+  EXPECT_EQ(rep.data.size(), 2);
   auto rep_keys = third_party::SArray<Key>(rep.data[0]);
   auto rep_vals = third_party::SArray<int>(rep.data[1]);
   for (int index = 0; index < s_keys.size(); index++) {
     EXPECT_EQ(rep_keys[index], s_keys[index]);
     EXPECT_EQ(rep_vals[index], s_vals[index]);
-    //LOG(INFO) << "test ______________";
-    //LOG(INFO) << rep_vals[index];
-    //LOG(INFO) << rep_keys[index];
   }
 }
 
 TEST_F(TestVectorStorage, AddGetFloat) {
-  VectorStorage<float> s;
+  VectorStorage<float> s({10, 20});
 
   Message m;
   third_party::SArray<Key> s_keys({13, 14, 15});
@@ -66,7 +78,7 @@ TEST_F(TestVectorStorage, AddGetFloat) {
 }
 
 TEST_F(TestVectorStorage, SubAddSubGet) {
-  VectorStorage<float> s;
+  VectorStorage<float> s({10, 20});
 
   third_party::SArray<Key> s_keys({13, 14, 15});
   third_party::SArray<float> s_vals({0.1, 0.2, 0.3});
@@ -78,4 +90,5 @@ TEST_F(TestVectorStorage, SubAddSubGet) {
 }
 
 }  // namespace
-}  // namespace csci5570
+}  // namespace flexps
+

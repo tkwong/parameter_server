@@ -6,7 +6,7 @@
 
 #include <thread>
 
-namespace csci5570 {
+namespace flexps {
 
 class Sender : public AbstractSender {
  public:
@@ -23,4 +23,4 @@ class Sender : public AbstractSender {
   std::thread sender_thread_;
 };
 
-}  // namespace csci5570
+}  // namespace flexps

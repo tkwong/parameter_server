@@ -4,7 +4,7 @@
 
 #include "glog/logging.h"
 
-namespace csci5570 {
+namespace flexps {
 
 inline void FreeData(void* data, void* hint) {
   if (hint == NULL) {
@@ -115,8 +115,15 @@ void Mailbox::Bind(const Node& node) {
 }
 
 void Mailbox::RegisterQueue(uint32_t queue_id, ThreadsafeQueue<Message>* const queue) {
+  std::lock_guard<std::mutex> lk(mu_);
   CHECK(queue_map_.find(queue_id) == queue_map_.end());
   queue_map_.insert({queue_id, queue});
+}
+
+void Mailbox::DeregisterQueue(uint32_t queue_id) {
+  std::lock_guard<std::mutex> lk(mu_);
+  CHECK(queue_map_.find(queue_id) != queue_map_.end());
+  queue_map_.erase(queue_id);
 }
 
 void Mailbox::Receiving() {
@@ -125,12 +132,12 @@ void Mailbox::Receiving() {
     Message msg;
     int recv_bytes = Recv(&msg);
     // For debugging, show received message
-    VLOG(1) << "Received message " << msg.DebugString();
+    VLOG(1) << "Node " << node_.id << " received message " << msg.DebugString();
 
     if (msg.meta.flag == Flag::kExit) {
       break;
     } else if (msg.meta.flag == Flag::kBarrier) {
-      std::unique_lock<std::mutex> lk(mu_);
+      std::unique_lock<std::mutex> lk(barrier_mu_);
       barrier_count_ += 1;
       if (barrier_count_ == nodes_.size()) {
         VLOG(1) << "Collected " << nodes_.size() << " barrier, Node:"
@@ -184,7 +191,7 @@ int Mailbox::Send(const Message& msg) {
   int send_bytes = meta_size;
 
   // send data
-  VLOG(1) << "Start sending data";
+  VLOG(1) << "Node " << node_.id << " starts sending data";
   for (int i = 0; i < num_data; ++i) {
     zmq_msg_t data_msg;
     third_party::SArray<char>* data = new third_party::SArray<char>(msg.data[i]);
@@ -233,10 +240,7 @@ int Mailbox::Recv(Message* msg) {
     } else if (i == 1) {
       // Unpack the meta
       Meta* meta = CHECK_NOTNULL((Meta*) zmq_msg_data(zmsg));
-      msg->meta.sender = meta->sender;
-      msg->meta.recver = meta->recver;
-      msg->meta.model_id = meta->model_id;
-      msg->meta.flag = meta->flag;
+      msg->meta = *meta;
       zmq_msg_close(zmsg);
       bool more = zmq_msg_more(zmsg);
       delete zmsg;
@@ -267,10 +271,10 @@ void Mailbox::Barrier() {
     barrier_msg.meta.flag = Flag::kBarrier;
     Send(barrier_msg);
   }
-  std::unique_lock<std::mutex> lk(mu_);
+  std::unique_lock<std::mutex> lk(barrier_mu_);
   // Very tricky. Consider to use all-one-all method instead of all-all.
   barrier_cond_.wait(lk, [this]() { return barrier_count_ >= nodes_.size(); });
   barrier_count_ -= nodes_.size();
 }
 
-}  // namespace csci5570
+}  // namespace flexps

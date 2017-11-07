@@ -4,8 +4,9 @@
 #include "base/magic.hpp"
 #include "server/abstract_model.hpp"
 #include "server/server_thread.hpp"
+#include "server/ssp_model.hpp"
 
-namespace csci5570 {
+namespace flexps {
 namespace {
 
 class TestServerThread : public testing::Test {
@@ -33,16 +34,7 @@ class FakeModel : public AbstractModel {
 
 TEST_F(TestServerThread, Construct) { ServerThread server_thread(0); }
 
-TEST_F(TestServerThread, RegisterModel) {
-  ServerThread server_thread(0);
-  std::unique_ptr<AbstractModel> model(new FakeModel());
-  const uint32_t model_id = 0;
-  server_thread.RegisterModel(model_id, std::move(model));
-  auto* p = static_cast<FakeModel*>(server_thread.GetModel(model_id));
-  EXPECT_NE(p, nullptr);
-}
-
-TEST_F(TestServerThread, Clock) {
+TEST_F(TestServerThread, Basic) {
   ServerThread server_thread(0);
   std::unique_ptr<AbstractModel> model(new FakeModel());
   const uint32_t model_id = 0;
@@ -57,61 +49,27 @@ TEST_F(TestServerThread, Clock) {
   work_queue->Push(m);
   work_queue->Push(m);
 
+  Message m2;
+  m2.meta.flag = Flag::kAdd;
+  m2.meta.model_id = model_id;
+  work_queue->Push(m2);
+
+  Message m3;
+  m3.meta.flag = Flag::kGet;
+  m3.meta.model_id = model_id;
+  work_queue->Push(m3);
+  work_queue->Push(m3);
+  work_queue->Push(m3);
+
   Message exit_msg;
   exit_msg.meta.flag = Flag::kExit;
   work_queue->Push(exit_msg);
   server_thread.Stop();
 
   EXPECT_EQ(p->clock_count_, 2);
-}
-
-TEST_F(TestServerThread, Add) {
-  ServerThread server_thread(0);
-  std::unique_ptr<AbstractModel> model(new FakeModel());
-  const uint32_t model_id = 0;
-  server_thread.RegisterModel(model_id, std::move(model));
-  auto* p = static_cast<FakeModel*>(server_thread.GetModel(model_id));
-  server_thread.Start();
-
-  auto* work_queue = server_thread.GetWorkQueue();
-
-  Message msg;
-  msg.meta.flag = Flag::kAdd;
-  msg.meta.model_id = model_id;
-  work_queue->Push(msg);
-
-  Message exit_msg;
-  exit_msg.meta.flag = Flag::kExit;
-  work_queue->Push(exit_msg);
-  server_thread.Stop();
-
   EXPECT_EQ(p->add_count_, 1);
-}
-
-TEST_F(TestServerThread, Get) {
-  ServerThread server_thread(0);
-  std::unique_ptr<AbstractModel> model(new FakeModel());
-  const uint32_t model_id = 0;
-  server_thread.RegisterModel(model_id, std::move(model));
-  auto* p = static_cast<FakeModel*>(server_thread.GetModel(model_id));
-  server_thread.Start();
-
-  auto* work_queue = server_thread.GetWorkQueue();
-
-  Message msg;
-  msg.meta.flag = Flag::kGet;
-  msg.meta.model_id = model_id;
-  work_queue->Push(msg);
-  work_queue->Push(msg);
-  work_queue->Push(msg);
-
-  Message exit_msg;
-  exit_msg.meta.flag = Flag::kExit;
-  work_queue->Push(exit_msg);
-  server_thread.Stop();
-
   EXPECT_EQ(p->get_count_, 3);
 }
 
 }  // namespace
-}  // namespace csci5570
+}  // namespace flexps

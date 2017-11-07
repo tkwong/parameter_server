@@ -4,7 +4,7 @@
 #include "base/message.hpp"
 #include "base/third_party/sarray.h"
 
-namespace csci5570 {
+namespace flexps {
 namespace {
 
 class TestMessage : public testing::Test {
@@ -25,4 +25,4 @@ TEST_F(TestMessage, BasicNotBreakDown) {
 }
 
 }  // namespace
-}  // namespace csci5570
+}  // namespace flexps

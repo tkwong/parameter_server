@@ -2,8 +2,8 @@
 
 #include <cinttypes>
 
-namespace csci5570 {
+namespace flexps {
 
 using Key = uint32_t;
 
-}  // namespace csci5570
+}  // namespace flexps

@@ -1,6 +1,6 @@
 #include "comm/sender.hpp"
 
-namespace csci5570 {
+namespace flexps {
 Sender::Sender(AbstractMailbox* mailbox) : mailbox_(mailbox) {}
 
 void Sender::Start() {
@@ -26,4 +26,4 @@ void Sender::Stop() {
   sender_thread_.join();
 }
 
-}  // namespace csci5570
+}  // namespace flexps

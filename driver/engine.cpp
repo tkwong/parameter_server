@@ -1,209 +1,208 @@
 #include "driver/engine.hpp"
 
-#include <vector>
 
-#include "base/abstract_partition_manager.hpp"
-#include "base/node.hpp"
-#include "comm/mailbox.hpp"
-#include "comm/sender.hpp"
-#include "driver/ml_task.hpp"
-#include "driver/simple_id_mapper.hpp"
-#include "driver/worker_spec.hpp"
-#include "server/server_thread.hpp"
-#include "worker/abstract_callback_runner.hpp"
-#include "worker/callback_runner.cpp"
-#include "worker/worker_thread.hpp"
+#include <thread>
+#include <vector>
 
 #include "glog/logging.h"
 
-namespace csci5570 {
+namespace flexps {
 
-class UserThread : public AbstractWorkerThread
-{
-    public:
-        UserThread(uint32_t id, const MLTask& task, Info info) : 
-            AbstractWorkerThread(id), task(task), info(info) {}
-    protected:
-        virtual void OnReceive(Message& msg) override {}
-        virtual void Main() override
-        {
-            task.RunLambda(info);
-        }
-
-        const MLTask& task;
-        Info info;
-};
-
-class WorkerHelperThread : public AbstractWorkerThread
-{
-    public:
-        WorkerHelperThread(uint32_t id, AbstractCallbackRunner* runner) : 
-            AbstractWorkerThread(id), runner(runner) {}
-    protected:
-        virtual void OnReceive(Message& msg) override
-        {
-            runner->AddResponse(msg.meta.recver, msg.meta.model_id, msg);
-        }
-        virtual void Main() override
-        {
-            while (true)
-            {
-                Message msg;
-                work_queue_.WaitAndPop(&msg);
-
-                if (msg.meta.flag == Flag::kExit) break;
-
-                OnReceive(msg);
-            }
-        }
-
-        AbstractCallbackRunner* runner; 
-};
-
-void Engine::StartEverything(int num_server_threads_per_node) {
-    CreateIdMapper(num_server_threads_per_node);
-    CreateMailbox();
-
-    StartSender();
-
-    for (int i=0; i<num_server_threads_per_node; i++)
-        server_thread_group_.push_back(new ServerThread(i));
-
-    uint32_t worker_id = id_mapper_.get()->AllocateWorkerThread(node_.id);
-    callback_runner_ = std::unique_ptr<AbstractCallbackRunner>(new CallbackRunner());
-    worker_thread_ = std::unique_ptr<AbstractWorkerThread>(
-        new WorkerHelperThread(worker_id, callback_runner_.get()));
-
-    for (auto server_ptr : server_thread_group_)
-        mailbox_.get()->RegisterQueue(server_ptr->GetId(), server_ptr->GetWorkQueue());
-    mailbox_.get()->RegisterQueue(worker_thread_.get()->GetId(), 
-                                  worker_thread_.get()->GetWorkQueue());
-    
-    StartServerThreads();
-    StartWorkerThreads();
-
-    StartMailbox();
+void Engine::StartEverything(int num_server_thread_per_node) {
+  CreateIdMapper(num_server_thread_per_node);
+  CreateMailbox();
+  StartSender();
+  StartServerThreads();
+  StartWorkerHelperThreads();
+  StartMailbox();
+  LOG(INFO) << "StartEverything in Node: " << node_.id;
 }
-void Engine::CreateIdMapper(int num_server_threads_per_node) {
-    id_mapper_ = std::unique_ptr<SimpleIdMapper>(new SimpleIdMapper(node_, nodes_));
-    id_mapper_.get()->Init(num_server_threads_per_node);
-    LOG(INFO) << "id_mapper_ created";
+
+void Engine::CreateIdMapper(int num_server_thread_per_node) {
+  id_mapper_.reset(new SimpleIdMapper(node_, nodes_));
+  id_mapper_->Init(num_server_thread_per_node);
 }
 void Engine::CreateMailbox() {
-    mailbox_ = std::unique_ptr<Mailbox>(new Mailbox(node_, nodes_, id_mapper_.get()));
-    sender_ = std::unique_ptr<Sender>(new Sender(mailbox_.get()));
-    LOG(INFO) << "mailbox_ and sender_ created";
+  mailbox_.reset(new Mailbox(node_, nodes_, id_mapper_.get()));
 }
-void Engine::StartServerThreads() {
-    for (auto it=server_thread_group_.begin(); it!=server_thread_group_.end(); it++)
-        (*it)->Start();
-    LOG(INFO) << "server threads started";
-}
-void Engine::StartWorkerThreads() {
-    worker_thread_.get()->Start();
-    LOG(INFO) << "worker threads started";
-}
-void Engine::StartMailbox() {
-    mailbox_.get()->Start();
-    LOG(INFO) << "Mailbox started";
-}
+
 void Engine::StartSender() {
-    sender_.get()->Start();
-    LOG(INFO) << "Sender started";
+  sender_.reset(new Sender(mailbox_.get()));
+  sender_->Start();
+}
+
+void Engine::StartWorkerHelperThreads() {
+  CHECK(id_mapper_);
+  CHECK(mailbox_);
+  auto worker_helper_thread_ids = id_mapper_->GetWorkerHelperThreadsForId(node_.id);
+  CHECK_EQ(worker_helper_thread_ids.size(), 1);
+  app_blocker_.reset(new AppBlocker());
+  worker_helper_thread_.reset(new WorkerHelperThread(worker_helper_thread_ids[0], app_blocker_.get()));
+  mailbox_->RegisterQueue(worker_helper_thread_->GetHelperId(), worker_helper_thread_->GetWorkQueue());
+  worker_helper_thread_->Start();
+  VLOG(1) << "worker_helper_thread:" << worker_helper_thread_ids[0] << " starts on node:" << node_.id;
+}
+
+void Engine::StartServerThreads() {
+  CHECK(sender_);
+  CHECK(mailbox_);
+  auto server_thread_ids = id_mapper_->GetServerThreadsForId(node_.id);
+  CHECK_GT(server_thread_ids.size(), 0);
+  server_thread_group_.reset(new ServerThreadGroup(server_thread_ids, sender_->GetMessageQueue()));
+  for (auto& server_thread : *server_thread_group_) {
+    mailbox_->RegisterQueue(server_thread->GetServerId(), server_thread->GetWorkQueue());
+    server_thread->Start();
+  }
+  std::stringstream ss;
+  for (auto id : server_thread_ids) {
+    ss << id << " ";
+  }
+  VLOG(1) << "server_threads:" << ss.str() << " start on node:" << node_.id;
+}
+
+void Engine::StartMailbox() {
+  CHECK(mailbox_);
+  VLOG(1) << mailbox_->GetQueueMapSize() << " threads are registered to node:" << node_.id;
+  mailbox_->Start();
+  VLOG(1) << "mailbox starts on node" << node_.id;
 }
 
 void Engine::StopEverything() {
-    StopSender();
-    Barrier();
-    StopMailbox();
-    StopServerThreads();
-    StopWorkerThreads();
-}
-void Engine::StopServerThreads() {
-    for (auto it=server_thread_group_.begin(); it!=server_thread_group_.end(); it++)
-        (*it)->Stop();
-    LOG(INFO) << "Server threads stopped";
-}
-void Engine::StopWorkerThreads() {
-    worker_thread_.get()->Stop();
-    LOG(INFO) << "Worker threads stopped";
-}
-void Engine::StopSender() {
-    sender_.get()->Stop();
-    LOG(INFO) << "Sender stopped";
-}
-void Engine::StopMailbox() {
-    mailbox_.get()->Stop();
-    LOG(INFO) << "Mailbox stopped";
+  StopMailbox();
+  StopSender();
+  StopServerThreads();
+  StopWorkerHelperThreads();
+  LOG(INFO) << "StopEverything in Node: " << node_.id;
 }
 
-void Engine::Barrier() {
-    mailbox_.get()->Barrier();
-    LOG(INFO) << "Barrier called";
+void Engine::StopWorkerHelperThreads() {
+  CHECK(worker_helper_thread_);
+  worker_helper_thread_->Stop();
+  VLOG(1) << "worker_helper_thread stops on node" << node_.id;
+}
+
+void Engine::StopServerThreads() {
+  CHECK(server_thread_group_);
+  for (auto& server_thread : *server_thread_group_) {
+    server_thread->Stop();
+  }
+  VLOG(1) << "server_threads stop on node" << node_.id;
+}
+
+void Engine::StopSender() {
+  CHECK(sender_);
+  sender_->Stop();
+  VLOG(1) << "sender stops on node" << node_.id;
+}
+
+void Engine::StopMailbox() {
+  CHECK(mailbox_);
+  mailbox_->Stop();
+  VLOG(1) << "mailbox stops on node" << node_.id;
 }
 
 WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_alloc) {
-    WorkerSpec result(worker_alloc);
-    auto workers = result.GetLocalWorkers(node_.id);
-    LOG(INFO) << "workers size: " << workers.size();
-    for (auto worker : workers)
-    {
-        uint32_t tid = id_mapper_.get()->AllocateWorkerThread(node_.id);
-        result.InsertWorkerIdThreadId(worker, tid);
+  CHECK(id_mapper_);
+  WorkerSpec worker_spec(worker_alloc);
+  // Need to make sure that all the engines allocate the same set of workers
+  for (auto& kv : worker_spec.GetNodeToWorkers()) {
+    for (int i = 0; i < kv.second.size(); ++ i) {
+      uint32_t tid = id_mapper_->AllocateWorkerThread(kv.first);
+      worker_spec.InsertWorkerIdThreadId(kv.second[i], tid);
     }
-    return result;
+  }
+  return worker_spec;
 }
 
-void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_ids) {
-    for (auto server_ptr : server_thread_group_)
-    {
-        auto model_ptr = server_ptr->GetModel(table_id);
-        if (!model_ptr) continue;
 
-        LOG(INFO) << "Sending Reset Message";
-        Message reset_msg;
-        reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
-        model_ptr->ResetWorker(reset_msg);
-    }
+void Engine::RegisterRangeManager(uint32_t table_id, 
+    const std::vector<third_party::Range>& ranges) {
+  CHECK(id_mapper_);
+  auto server_thread_ids = id_mapper_->GetAllServerThreads();
+  CHECK_EQ(ranges.size(), server_thread_ids.size());
+  SimpleRangeManager range_manager(ranges, server_thread_ids);
+  CHECK(range_manager_map_.find(table_id) == range_manager_map_.end());
+  range_manager_map_.insert({table_id, range_manager});
+}
+
+
+void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_ids) {
+  CHECK(id_mapper_);
+  CHECK(mailbox_);
+  std::vector<uint32_t> local_servers = id_mapper_->GetServerThreadsForId(node_.id);
+  int count = local_servers.size();
+  if (count == 0)
+    return;
+  // Register receiving queue
+  auto id = id_mapper_->AllocateWorkerThread(node_.id);  // TODO allocate background thread?
+  ThreadsafeQueue<Message> queue;
+  mailbox_->RegisterQueue(id, &queue);
+  // Create and send reset worker message
+  Message reset_msg;
+  reset_msg.meta.flag = Flag::kResetWorkerInModel;
+  reset_msg.meta.model_id = table_id;
+  reset_msg.meta.sender = id;
+  reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
+  for (auto local_server : local_servers) {
+    reset_msg.meta.recver = local_server;
+    sender_->GetMessageQueue()->Push(reset_msg);
+  }
+  // Wait for reply
+  Message reply;
+  while (count > 0) {
+    queue.WaitAndPop(&reply);
+    CHECK(reply.meta.flag == Flag::kResetWorkerInModel);
+    CHECK(reply.meta.model_id == table_id);
+    --count;
+  }
+  // Free receiving queue
+  mailbox_->DeregisterQueue(id);
+  id_mapper_->DeallocateWorkerThread(node_.id, id);
 }
 
 void Engine::Run(const MLTask& task) {
-    WorkerSpec spec = AllocateWorkers(task.GetWorkerAlloc());
-    LOG(INFO) << "Allocated Threads size " << spec.GetLocalThreads(node_.id).size();;
-    for (uint32_t table_id : task.GetTables())
-        InitTable(table_id, spec.GetLocalThreads(node_.id));
+  CHECK(task.IsSetup());
+  WorkerSpec worker_spec = AllocateWorkers(task.GetWorkerAlloc());
 
-    std::vector<UserThread*> workers;
-    auto loc_workers = spec.GetLocalWorkers(node_.id);
-    auto loc_threads  = spec.GetLocalThreads(node_.id);
-    for (int i=0; i<loc_threads.size(); i++)
-    {
-        auto pm_map = new std::map<uint32_t, AbstractPartitionManager*>();
-        for (auto it = partition_manager_map_.begin(); it!=partition_manager_map_.end(); it++)
-            pm_map->insert(std::make_pair(it->first, it->second.get()));
+  // Init tables
+  const std::vector<uint32_t>& tables = task.GetTables();
+  for (auto table : tables) {
+    InitTable(table, worker_spec.GetAllThreadIds());
+  }
+  Barrier();
 
-        Info info;
-        info.thread_id = loc_threads[i];
-        info.worker_id = loc_workers[i];
-        info.send_queue = sender_.get()->GetMessageQueue();
-        info.partition_manager_map = *pm_map;
-        info.callback_runner = callback_runner_.get();
-
-        LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id;
-
-        UserThread* worker = new UserThread(info.thread_id, task, info);
-        mailbox_.get()->RegisterQueue(info.thread_id, worker_thread_.get()->GetWorkQueue());
-        workers.push_back(worker);
-        worker->Start();
+  // Spawn user threads
+  if (worker_spec.HasLocalWorkers(node_.id)) {
+    const auto& local_threads = worker_spec.GetLocalThreads(node_.id);
+    const auto& local_workers = worker_spec.GetLocalWorkers(node_.id);
+    CHECK_EQ(local_threads.size(), local_workers.size());
+    std::vector<std::thread> thread_group(local_threads.size());
+    LOG(INFO) << thread_group.size() << " workers run on proc: " << node_.id;
+    for (int i = 0; i < thread_group.size(); ++ i) {
+      // TODO: Now I register the thread_id with the queue in worker_helper_thread to the mailbox.
+      // So that the message sent to thread_id will be pushed into worker_helper_thread_'s queue
+      // and worker_helper_thread_ is in charge of handling the message.
+      mailbox_->RegisterQueue(local_threads[i], worker_helper_thread_->GetWorkQueue());
+      Info info;
+      info.local_id = i;
+      info.thread_id = local_threads[i];
+      info.worker_id = local_workers[i];
+      info.send_queue = sender_->GetMessageQueue();
+      info.range_manager_map = range_manager_map_;  // Now I just copy it
+      info.callback_runner = app_blocker_.get();
+      thread_group[i] = std::thread([&task, info](){
+        task.RunLambda(info);
+      });
     }
-
-    for (auto worker : workers) worker->Stop();
+    for (auto& th : thread_group) {
+      th.join();
+    }
+  }
 }
 
-void Engine::RegisterPartitionManager(uint32_t table_id, 
-    std::unique_ptr<AbstractPartitionManager> partition_manager) 
-{
-    partition_manager_map_.insert(std::make_pair(table_id, std::move(partition_manager)));
+void Engine::Barrier() {
+  CHECK(mailbox_);
+  mailbox_->Barrier();
 }
 
-}  // namespace csci5570
+}  // namespace flexps

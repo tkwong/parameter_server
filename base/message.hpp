@@ -7,7 +7,7 @@
 #include "base/serialization.hpp"
 #include "base/third_party/sarray.h"
 
-namespace csci5570 {
+namespace flexps {
 
 struct Control {};
 
@@ -19,6 +19,7 @@ struct Meta {
   int recver;
   int model_id;
   Flag flag;  // {kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet}
+  uint32_t version;
 
   std::string DebugString() const {
     std::stringstream ss;
@@ -27,7 +28,7 @@ struct Meta {
     ss << ", recver: " << recver;
     ss << ", model_id: " << model_id;
     ss << ", flag: " << FlagName[static_cast<int>(flag)];
-
+    ss << ", version: " << version;
     ss << "}";
     return ss.str();
   }
@@ -54,4 +55,22 @@ struct Message {
   }
 };
 
-}  // namespace csci5570
+namespace {
+Message CreateMessage(Flag _flag, int _model_id, int _sender, int _recver, int _version, 
+                third_party::SArray<int> keys = {}, third_party::SArray<int> values = {}) {
+  Message m;
+  m.meta.flag = _flag;
+  m.meta.model_id = _model_id;
+  m.meta.sender = _sender;
+  m.meta.recver = _recver;
+  m.meta.version = _version;
+
+  if (keys.size() != 0)
+    m.AddData(keys);
+  if (values.size() != 0)
+    m.AddData(values);
+  return m;
+}
+}  // namespace
+
+}  // namespace flexps
