@@ -155,6 +155,11 @@ WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_alloc)
 }
 
 void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_ids) {
+    Message terminate;
+    terminate.meta.flag = Flag::kExit;
+    worker_thread_.get()->GetWorkQueue()->Push(terminate);
+    worker_thread_.get()->Stop();
+
     for (auto server_ptr : server_thread_group_)
     {
         auto model_ptr = server_ptr->GetModel(table_id);
@@ -162,9 +167,17 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
 
         LOG(INFO) << "Sending Reset Message";
         Message reset_msg;
+        reset_msg.meta.sender = worker_thread_.get()->GetId();
+        reset_msg.meta.recver = server_ptr->GetId();
         reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
         model_ptr->ResetWorker(reset_msg);
+
+        Message reply;
+        worker_thread_.get()->GetWorkQueue()->WaitAndPop(&reply);
+        LOG(INFO) << "Reply message received";
     }
+
+    worker_thread_.get()->Start();
 }
 
 void Engine::Run(const MLTask& task) {

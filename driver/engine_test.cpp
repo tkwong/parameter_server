@@ -130,8 +130,7 @@ TEST_F(TestEngine, KVClientTableMapStorage) {
     LOG(INFO) << "Hi";
     LOG(INFO) << info.DebugString();
     ASSERT_TRUE(info.partition_manager_map.find(kTableId) != info.partition_manager_map.end());
-    KVClientTable<double> table(info.thread_id, kTableId, info.send_queue,
-                                info.partition_manager_map.find(kTableId)->second, info.callback_runner);
+    KVClientTable<double> table = info.CreateKVClientTable<double>(kTableId);
     for (int i = 0; i < 5; ++i) {
       std::vector<Key> keys{1};
       std::vector<double> vals{0.5};

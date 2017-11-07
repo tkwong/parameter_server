@@ -44,11 +44,16 @@ int SSPModel::GetPendingSize(int progress) {
 }
 
 void SSPModel::ResetWorker(Message& msg) {
+    LOG(INFO) << "Received Reset Message";
     third_party::SArray<uint32_t> tids(msg.data[0]);
     progress_tracker_.Init(std::vector<uint32_t>(tids.begin(), tids.end()));
 
-    msg.meta.flag = Flag::kResetWorkerInModel;
-    reply_queue_->Push(msg);
+    Message reply;
+    reply.meta.sender = msg.meta.recver;
+    reply.meta.recver = msg.meta.sender;
+    reply.meta.flag = Flag::kResetWorkerInModel;
+    reply_queue_->Push(reply);
+    LOG(INFO) << "Reply message sent";
 }
 
 }  // namespace csci5570
