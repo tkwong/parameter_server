@@ -18,12 +18,12 @@ class TestAsyncReadBuffer : public testing::Test {
         void TearDown() {}
 };
 
-TEST_F(TestAsyncReadBuffer, DISABLED_init) {
+TEST_F(TestAsyncReadBuffer, init) {
     AsyncReadBuffer buffer_;    
     buffer_.init("hdfs://proj10:9000/datasets/classification/a9/", 0,1,1024,10240);
 }
 
-TEST_F(TestAsyncReadBuffer, DISABLED_get_batch) {
+TEST_F(TestAsyncReadBuffer, get_batch) {
   AsyncReadBuffer buffer_;    
   buffer_.init("hdfs://proj10:9000/datasets/classification/a9/", 0,1,1024,10240);
   
@@ -38,14 +38,14 @@ TEST_F(TestAsyncReadBuffer, DISABLED_get_batch) {
   
 }
 
-TEST_F(TestAsyncReadBuffer, DISABLED_ask) {
+TEST_F(TestAsyncReadBuffer, ask) {
     AsyncReadBuffer buffer_;
     buffer_.init("hdfs://proj10:9000/datasets/classification/a9/", 0,1,1024,10240);
     sleep(1);
     EXPECT_NE(buffer_.ask(), 0);
 }
 
-TEST_F(TestAsyncReadBuffer, DISABLED_end_of_file) {
+TEST_F(TestAsyncReadBuffer, end_of_file) {
   AsyncReadBuffer buffer_;    
   buffer_.init("hdfs://proj10:9000/datasets/classification/a9/", 0,1,1024,10240);
   while(buffer_.end_of_file() != true){

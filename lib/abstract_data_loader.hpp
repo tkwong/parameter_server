@@ -6,6 +6,7 @@
 #include "boost/utility/string_ref.hpp"
 
 #include "lib/parser.hpp"
+#include "lib/LUrlParser/LUrlParser.hpp"
 #include "io/coordinator.hpp"
 #include "io/line_input_format.hpp"
 
@@ -27,8 +28,9 @@ class AbstractDataLoader {
   template <typename Parse>  // e.g. std::function<Sample(boost::string_ref, int)>
   static void load(std::string url, int n_features, Parse parse, DataStore* datastore) {
     // 1. Connect to the data source, e.g. HDFS, via the modules in io
-    std::string hdfs_namenode = "proj10";
-    int hdfs_namenode_port = 9000;
+    LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL(url);
+    std::string hdfs_namenode = URL.m_Host;
+    int hdfs_namenode_port = stoi(URL.m_Port);
     int master_port = 19818;  // use a random port number to avoid collision with other users
     zmq::context_t zmq_context(1);
     
@@ -42,7 +44,7 @@ class AbstractDataLoader {
     
     int num_threads = 1;
     int second_id = 0;
-    LineInputFormat infmt(url, num_threads, second_id, &coordinator,
+    LineInputFormat infmt("/"+URL.m_Path, num_threads, second_id, &coordinator,
         worker_host, hdfs_namenode, hdfs_namenode_port);
     LOG(INFO) << "Line input is well prepared";
     

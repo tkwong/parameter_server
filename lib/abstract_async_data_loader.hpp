@@ -66,7 +66,7 @@ public:
     // auto zmq_context = std::make_shared<zmq::context_t>(1);
     int proc_id = getpid();
     std::string master_host = "localhost";
-    int master_port = 19817;  // use a random port number to avoid collision with other users
+    int master_port = 19818;  // use a random port number to avoid collision with other users
     std::string worker_host = "localhost";
 
     master_thread_ = std::thread([this, master_port, hdfs_namenode_port, hdfs_namenode] {

@@ -18,7 +18,7 @@ class TestAsyncDataLoader : public testing::Test {
         void TearDown() {}
 };
 
-TEST_F(TestAsyncDataLoader, DISABLED_init) {
+TEST_F(TestAsyncDataLoader, init) {
     
 }
 

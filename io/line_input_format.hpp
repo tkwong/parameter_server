@@ -30,12 +30,12 @@ class LineInputFormat {
       return;
     url_ = url;
 
-    int prefix = url_.find("://");
-    CHECK(prefix != std::string::npos) << ("Cannot analyze protocol from " + url_).c_str();
+    // int prefix = url_.find("://");
+    // CHECK(prefix != std::string::npos) << ("Cannot analyze protocol from " + url_).c_str();
     // DLOG(INFO) << "In Line input Format : " << url_.substr(prefix + 3);
     // parse the url for hadoop
-    splitter_->load(url_.substr(prefix + 3));
-    // splitter_->load(url);
+    // splitter_->load(url_.substr(prefix + 3));
+    splitter_->load(url);
   }
 
   void set_num_threads(int num_threads) { num_threads_ = num_threads; }
