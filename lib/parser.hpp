@@ -25,18 +25,19 @@ class Parser {
     
     Sample sample;
 	
-    char *str = strdup(line.data());
+    char *str = strdup(std::string(line).c_str());
     char *saveptr1;
     
     char *token = strtok_r(str, " ", &saveptr1);
     sample.addLabel(atoi(token));
     
-    for (int i=0; i < n_features; i++) // parse n_features only.
+    while(true)
     {
         char *key = strtok_r(NULL, ":", &saveptr1);
+        if (key==NULL) break;
         char *val = strtok_r(NULL, " ", &saveptr1);
         
-        sample.addFeature(std::stoi(key), atof(val));
+       sample.addFeature(std::stoi(key), atof(val));
     }
     
     return sample;

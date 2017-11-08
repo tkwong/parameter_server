@@ -6,6 +6,8 @@
 #include "boost/utility/string_ref.hpp"
 
 #include "lib/parser.hpp"
+#include "io/coordinator.hpp"
+#include "io/line_input_format.hpp"
 
 namespace csci5570 {
 namespace lib {
@@ -27,7 +29,7 @@ class AbstractDataLoader {
     // 1. Connect to the data source, e.g. HDFS, via the modules in io
     std::string hdfs_namenode = "proj10";
     int hdfs_namenode_port = 9000;
-    int master_port = 19817;  // use a random port number to avoid collision with other users
+    int master_port = 19818;  // use a random port number to avoid collision with other users
     zmq::context_t zmq_context(1);
     
     int proc_id = getpid();
@@ -53,7 +55,7 @@ class AbstractDataLoader {
         if (success == false)
             break;
         Sample sample = parse(record, n_features);
-        datastore.put(sample);
+        datastore->push_back(sample);
     }
     
     BinStream finish_signal;
