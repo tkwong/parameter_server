@@ -33,6 +33,12 @@ class AbstractDataLoader {
     int hdfs_namenode_port = stoi(URL.m_Port);
     int master_port = 19818;  // use a random port number to avoid collision with other users
     zmq::context_t zmq_context(1);
+
+    std::thread master_thread([&zmq_context, master_port, hdfs_namenode_port, hdfs_namenode]
+    {
+        HDFSBlockAssigner assigner(hdfs_namenode, hdfs_namenode_port, &zmq_context, master_port);
+        assigner.Serve();
+    });
     
     int proc_id = getpid();
     std::string master_host = "proj10";
@@ -63,6 +69,7 @@ class AbstractDataLoader {
     BinStream finish_signal;
     finish_signal << worker_host << second_id;
     coordinator.notify_master(finish_signal, 300);
+    master_thread.join();
   }
 
 };  // class AbstractDataLoader

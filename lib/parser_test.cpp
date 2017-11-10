@@ -25,7 +25,7 @@ TEST_F(TestParser, libsvm) {
     boost::string_ref line2 = "20 99:1.1 207:1.2 208:1.3 225:1.4";
 
     auto sample1 = Parser<LabeledSample<int, int>,
-        Eigen::SparseVector<int>>::parse_libsvm(line1, 5);
+        Eigen::SparseVector<int>>::parse_libsvm(line1, 250);
 
     Eigen::SparseVector<int> expected1;
     expected1.resize(251);
@@ -39,7 +39,7 @@ TEST_F(TestParser, libsvm) {
     EXPECT_EQ(sample1.label, -1);
 
     auto sample2 = Parser<LabeledSample<char, double>,
-        Eigen::SparseVector<double>>::parse_libsvm(line2, 4);
+        Eigen::SparseVector<double>>::parse_libsvm(line2, 225);
 
     Eigen::SparseVector<int> expected2;
     expected2.resize(226);

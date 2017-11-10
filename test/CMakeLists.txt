@@ -35,4 +35,8 @@ add_executable(TestMnist test_mnist.cpp)
 target_compile_definitions(TestMnist PRIVATE MNIST_DATA_LOCATION="${CMAKE_CURRENT_LIST_DIR}/data/")
 add_dependencies(TestMnist ${external_project_dependencies})
 
-
+add_executable(LogisticRegression logistic_regression.cpp)
+target_link_libraries(LogisticRegression csci5570)
+target_link_libraries(LogisticRegression ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET LogisticRegression PROPERTY CXX_STANDARD 11)
+add_dependencies(LogisticRegression ${external_project_dependencies})

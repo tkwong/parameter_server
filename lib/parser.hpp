@@ -23,7 +23,7 @@ class Parser {
     // hints: you may use boost::tokenizer, std::strtok_r, std::stringstream or any method you like
     // so far we tried all the tree and found std::strtok_r is fastest :)
     
-    Sample sample;
+    Sample sample(n_features);
 	
     char *str = strdup(std::string(line).c_str());
     char *saveptr1;
