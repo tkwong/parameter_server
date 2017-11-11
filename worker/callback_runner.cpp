@@ -43,7 +43,7 @@ class CallbackRunner: public AbstractCallbackRunner {
             auto recv_handle = recv_handles[std::make_pair(app_thread_id, model_id)];
             auto recv_finish_handle = recv_finish_handles[std::make_pair(app_thread_id, model_id)];
             
-            LOG(INFO) << "tracker:" << tracker->first << " " << tracker->second;
+            // LOG(INFO) << "tracker:" << tracker->first << " " << tracker->second;
             
             bool recv_finish = false;
             {
@@ -51,7 +51,7 @@ class CallbackRunner: public AbstractCallbackRunner {
               recv_finish = tracker->first == tracker->second + 1 ? true : false;
             }
             
-            LOG(INFO) << "recv_finish: " << (recv_finish==true?"True":"False");
+            // LOG(INFO) << "recv_finish: " << (recv_finish==true?"True":"False");
             
             recv_handle(msg);
             if (recv_finish) recv_finish_handle();

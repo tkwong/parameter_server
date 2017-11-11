@@ -13,7 +13,7 @@ BSPModel::BSPModel(uint32_t model_id, std::unique_ptr<AbstractStorage>&& storage
 
 void BSPModel::Clock(Message& msg) {
   const int clock = progress_tracker_.AdvanceAndGetChangedMinClock(msg.meta.sender);
-  DLOG(INFO) << "CLOCKED " << clock << " msg.meta.sender " << msg.meta.sender;
+  // DLOG(INFO) << "CLOCKED " << clock << " msg.meta.sender " << msg.meta.sender;
   if (clock != -1)
   {
       for(auto message : get_buffer_) {
@@ -50,7 +50,7 @@ void BSPModel::Add(Message& msg) {
 
 void BSPModel::Get(Message& msg) {
   const int clock = progress_tracker_.GetProgress(msg.meta.sender);
-  DLOG(INFO) << "Get sender: " << msg.meta.sender << " clock: " << clock ;
+  // DLOG(INFO) << "Get sender: " << msg.meta.sender << " clock: " << clock ;
   if (clock > progress_tracker_.GetMinClock() + 1)
       get_buffer_.push_back(msg);
   else
@@ -74,8 +74,12 @@ void BSPModel::ResetWorker(Message& msg) {
   DLOG(INFO) << "Init progress_tracker " << tids;
   progress_tracker_.Init(std::vector<uint32_t>(tids.begin(), tids.end()));
 
-  msg.meta.flag = Flag::kResetWorkerInModel;
-  reply_queue_->Push(msg);
+  Message reply;
+  reply.meta.sender = msg.meta.recver;
+  reply.meta.recver = msg.meta.sender;
+  reply.meta.flag = Flag::kResetWorkerInModel;
+  reply_queue_->Push(reply);
+  LOG(INFO) << "Reply message sent";
 }
 
 }  // namespace csci5570

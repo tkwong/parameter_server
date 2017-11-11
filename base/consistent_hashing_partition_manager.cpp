@@ -24,7 +24,7 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 				
 				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
 				auto node_id = server_thread_ids_.at(JumpConsistentHash(key, server_thread_ids_.size()));
-				DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
+				// DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 			  
 			  	// TO Construct the result set sliced : [ (0, [1,2,3] ), (1, [4,5,6])]
 				// Find if the node id exists 
@@ -32,10 +32,10 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 				if ( it != sliced->end()){
 					//Append to that node_id 
 					it->second.append(Keys({key}));
-					DLOG(INFO) << "APPEND "<< key << " to " << it->first ;					
+					// DLOG(INFO) << "APPEND "<< key << " to " << it->first ;
 				} else {
-					sliced->push_back(std::make_pair(node_id, Keys({key})));				
-					DLOG(INFO) << "ADD "<< key << " to " << node_id ;					
+					sliced->push_back(std::make_pair(node_id, Keys({key})));
+					// DLOG(INFO) << "ADD "<< key << " to " << node_id ;	
 				}
 				
 			}
@@ -52,7 +52,7 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 
 				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
 				auto node_id = server_thread_ids_.at(ConsistentHashingPartitionManager::JumpConsistentHash(key, server_thread_ids_.size()));
-				DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
+				// DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 				
 			  	// TO Construct the result set sliced : [ (0, ([1,2,3],[.1,.2,.3]) ), (1, ([4,5,6], [.4,.5,.6])) ]
 				// Find if the node id exists 
@@ -64,10 +64,10 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 					it->second.first.append(keys);
 					it->second.second.append(vals);
 					
-					DLOG(INFO) << "APPEND "<< key  << ":" << val << " to " << it->first;
+					// DLOG(INFO) << "APPEND "<< key  << ":" << val << " to " << it->first;
 				} else {
 					sliced->push_back(std::make_pair(node_id, std::make_pair(keys, vals) ));
-					DLOG(INFO) << "ADD "<< key << " to " << node_id; 		
+					// DLOG(INFO) << "ADD "<< key << " to " << node_id; 		
 				}
 				
 			}

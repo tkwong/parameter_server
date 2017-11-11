@@ -26,19 +26,14 @@ class AbstractDataLoader {
    * @param datastore    a container for the samples / external in-memory storage abstraction
    */
   template <typename Parse>  // e.g. std::function<Sample(boost::string_ref, int)>
-  static void load(std::string url, int n_features, Parse parse, DataStore* datastore) {
+  static void load(std::string url, int n_features, Parse parse, DataStore* datastore,
+        int second_id, int num_threads) {
     // 1. Connect to the data source, e.g. HDFS, via the modules in io
     LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL(url);
     std::string hdfs_namenode = URL.m_Host;
     int hdfs_namenode_port = stoi(URL.m_Port);
     int master_port = 19818;  // use a random port number to avoid collision with other users
     zmq::context_t zmq_context(1);
-
-    std::thread master_thread([&zmq_context, master_port, hdfs_namenode_port, hdfs_namenode]
-    {
-        HDFSBlockAssigner assigner(hdfs_namenode, hdfs_namenode_port, &zmq_context, master_port);
-        assigner.Serve();
-    });
     
     int proc_id = getpid();
     std::string master_host = "proj10";
@@ -48,8 +43,8 @@ class AbstractDataLoader {
     coordinator.serve();
     LOG(INFO) << "Coordinator begins serving";
     
-    int num_threads = 1;
-    int second_id = 0;
+    //int num_threads = 1;
+    //int second_id = 0;
     LineInputFormat infmt("/"+URL.m_Path, num_threads, second_id, &coordinator,
         worker_host, hdfs_namenode, hdfs_namenode_port);
     LOG(INFO) << "Line input is well prepared";
@@ -69,7 +64,6 @@ class AbstractDataLoader {
     BinStream finish_signal;
     finish_signal << worker_host << second_id;
     coordinator.notify_master(finish_signal, 300);
-    master_thread.join();
   }
 
 };  // class AbstractDataLoader
