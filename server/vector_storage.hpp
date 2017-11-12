@@ -38,9 +38,7 @@ namespace csci5570{
 		        	    //LOG(INFO) << "vals here output";
 	                 	//LOG(INFO) << reply_vals[m];
 
-	                 }
-            else
-              break; //If a key does not exist, return the values founded so far.
+	          }
      			}
 	    	}
 	    	LOG(INFO) << "berfore return";
