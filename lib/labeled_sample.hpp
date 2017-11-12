@@ -14,7 +14,10 @@ class LabeledSample : public AbstractSample<Feature,Label> {
         Eigen::SparseVector<Feature> features;
         Label label;
 
-        LabeledSample(int n_features = 123) {features.conservativeResize(n_features+1);}
+        LabeledSample(int n_features = 0) {
+          if (n_features > 0)
+            features.conservativeResize(n_features+1);
+        }
 
         void addFeature(int index, Feature feature) override
         {
