@@ -23,9 +23,9 @@ namespace csci5570{
 	             //LOG(INFO) << "hello";
 	             //LOG(INFO) << storage_keys[0];
 	             storage_vals.insert(storage_vals.end(), typed_vals[i]);
-	             LOG(INFO) << "vals here";
-	             LOG(INFO) << storage_vals[i];
-	             LOG(INFO) << typed_vals[i];
+               // LOG(INFO) << "vals here";
+               // LOG(INFO) << storage_vals[i];
+               // LOG(INFO) << typed_vals[i];
 			}
 			
 		} 
@@ -39,8 +39,8 @@ namespace csci5570{
 	                 	//LOG(INFO) << reply_vals[m];
 
 	                 }
-		    		//else
-		    			//break; //If a key does not exist, return the values founded so far.
+            else
+              break; //If a key does not exist, return the values founded so far.
      			}
 	    	}
 	    	LOG(INFO) << "berfore return";

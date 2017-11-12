@@ -74,8 +74,12 @@ void BSPModel::ResetWorker(Message& msg) {
   DLOG(INFO) << "Init progress_tracker " << tids;
   progress_tracker_.Init(std::vector<uint32_t>(tids.begin(), tids.end()));
 
-  msg.meta.flag = Flag::kResetWorkerInModel;
-  reply_queue_->Push(msg);
+  Message reply_msg;
+  reply_msg.meta.model_id = model_id_;
+  reply_msg.meta.recver = msg.meta.sender;
+  reply_msg.meta.flag = Flag::kResetWorkerInModel;
+  
+  reply_queue_->Push(reply_msg);
 }
 
 }  // namespace csci5570

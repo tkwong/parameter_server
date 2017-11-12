@@ -14,16 +14,21 @@ class LabeledSample : public AbstractSample<Feature,Label> {
         Eigen::SparseVector<Feature> features;
         Label label;
 
-        LabeledSample(int n_features) {features.conservativeResize(n_features+1);}
+        LabeledSample(int n_features = 123) {features.conservativeResize(n_features+1);}
 
         void addFeature(int index, Feature feature) override
         {
             features.coeffRef(index) = feature;
         }
-        void addLabel(Label label)
+        void addLabel(Label label) override
         {
             this->label = label;
         }
+        // std::ostream& operator<<(std::ostream& os, const LabeledSample& obj)
+        // {
+        //     // write obj to stream
+        //     return os;
+        // }
 
 };  // class LabeledSample
 

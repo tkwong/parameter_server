@@ -10,6 +10,9 @@
 #include <cinttypes>
 #include <vector>
 
+#include "gflags/gflags.h"
+#include "glog/logging.h"
+
 namespace csci5570 {
 
 /**
@@ -39,7 +42,19 @@ class KVClientTable {
         callback_runner_(callback_runner){};
 
   // ========== API ========== //
-  void Clock();
+  void Clock()
+  {
+    CHECK_NOTNULL(partition_manager_);
+    const auto& server_thread_ids = partition_manager_->GetServerThreadIds();
+    for (uint32_t server_id : server_thread_ids) {
+      Message msg;
+      msg.meta.sender = app_thread_id_;
+      msg.meta.recver = server_id;
+      msg.meta.model_id = model_id_;
+      msg.meta.flag = Flag::kClock;
+      sender_queue_->Push(std::move(msg));
+    }
+  }
   
   // vector version
   void Add(const std::vector<Key>& keys, const std::vector<Val>& vals) 
@@ -100,9 +115,12 @@ class KVClientTable {
 
         for (int i=0; i<re_keys.size(); i++) reply.insert(std::make_pair(re_keys[i], re_vals[i]));
     });
-    callback_runner_->RegisterRecvFinishHandle(app_thread_id_, model_id_, []{});
-    callback_runner_->NewRequest(app_thread_id_, model_id_, sliced.size());
     
+    // TODO: We should have something to register in order to set the values to reply.
+    callback_runner_->RegisterRecvFinishHandle(app_thread_id_, model_id_, []{});
+    
+    callback_runner_->NewRequest(app_thread_id_, model_id_, sliced.size());
+    LOG(INFO) << "Sending Messages To Servers";   
     // Send request to each server
     for (auto it=sliced.begin(); it!=sliced.end(); it++)
     {
@@ -116,8 +134,10 @@ class KVClientTable {
         
         sender_queue_->Push(msg);
     }
-    
+    LOG(INFO) << "Wait Message from Servers";
+    // wait request response
     callback_runner_->WaitRequest(app_thread_id_, model_id_);
+    LOG(INFO) << "Received Message from Servers";
     vals->clear();
     for (auto it=reply.begin(); it!=reply.end(); it++) vals->push_back(it->second);
   }

@@ -13,7 +13,7 @@ class TestModel : public AbstractModel {
         virtual void Clock(Message&) override {}
         virtual void Add(Message& msg) override {storage->Add(msg);}
         virtual void Get(Message& msg) override {reply_q->Push(storage->Get(msg));}
-        virtual int GetProgress(int tid) override {}
+        virtual int GetProgress(int tid) override {return 0;}
         virtual void ResetWorker(Message& msg) override {}
     
     protected:

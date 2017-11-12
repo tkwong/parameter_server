@@ -11,9 +11,9 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
         ConsistentHashingPartitionManager(const std::vector<uint32_t>& ids) :
             AbstractPartitionManager(ids) {}
 
-        size_t GetNumServers() const { return server_thread_ids_.size(); }
-
-        const std::vector<uint32_t>& GetServerThreadIds() const { return server_thread_ids_; }
+        // size_t GetNumServers() const { return server_thread_ids_.size(); }
+        //
+        // const std::vector<uint32_t>& GetServerThreadIds() const { return server_thread_ids_; }
 
         void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) const override
 		{

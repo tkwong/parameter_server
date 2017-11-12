@@ -25,6 +25,7 @@ void ServerThread::Main() {
     if(msg.meta.flag == Flag::kExit) break;
 
     AbstractModel* model = GetModel(msg.meta.model_id);
+    
     if (model == nullptr) continue; //Skip this message if the model_id does not exist.
 
     switch(msg.meta.flag){
@@ -37,14 +38,16 @@ void ServerThread::Main() {
       case Flag::kGet:
         model->Get(msg);
         break;
-      case Flag::kExit: 
-        break;
       case Flag::kBarrier:
         break;
       case Flag::kResetWorkerInModel:
+        model->ResetWorker(msg);
         break;
+      default:
+        LOG(INFO) << "Unknown flag in msg: " << static_cast<int>(msg.meta.flag);
     }
   }
 }
+
 }  // namespace csci5570
 

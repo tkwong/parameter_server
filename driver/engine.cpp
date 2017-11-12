@@ -181,36 +181,45 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
 }
 
 void Engine::Run(const MLTask& task) {
+    CHECK(task.IsSetup());
+    
     WorkerSpec spec = AllocateWorkers(task.GetWorkerAlloc());
     LOG(INFO) << "Allocated Threads size " << spec.GetLocalThreads(node_.id).size();;
+    
+    // Init tables
     for (uint32_t table_id : task.GetTables())
-        InitTable(table_id, spec.GetLocalThreads(node_.id));
+        InitTable(table_id, spec.GetAllThreadIds());
+    Barrier();
+    
+    // Spawn user threads if server == workers
+    if (spec.HasLocalWorkers(node_.id)) {
+      std::vector<UserThread*> workers;
+      auto loc_workers = spec.GetLocalWorkers(node_.id);
+      auto loc_threads  = spec.GetLocalThreads(node_.id);
+      for (int i=0; i<loc_threads.size(); i++)
+      {
+          auto pm_map = new std::map<uint32_t, AbstractPartitionManager*>();
+          for (auto it = partition_manager_map_.begin(); it!=partition_manager_map_.end(); it++)
+              pm_map->insert(std::make_pair(it->first, it->second.get()));
 
-    std::vector<UserThread*> workers;
-    auto loc_workers = spec.GetLocalWorkers(node_.id);
-    auto loc_threads  = spec.GetLocalThreads(node_.id);
-    for (int i=0; i<loc_threads.size(); i++)
-    {
-        auto pm_map = new std::map<uint32_t, AbstractPartitionManager*>();
-        for (auto it = partition_manager_map_.begin(); it!=partition_manager_map_.end(); it++)
-            pm_map->insert(std::make_pair(it->first, it->second.get()));
+          Info info;
+          info.thread_id = loc_threads[i];
+          info.worker_id = loc_workers[i];
+          info.send_queue = sender_.get()->GetMessageQueue();
+          info.partition_manager_map = *pm_map;
+          info.callback_runner = callback_runner_.get();
 
-        Info info;
-        info.thread_id = loc_threads[i];
-        info.worker_id = loc_workers[i];
-        info.send_queue = sender_.get()->GetMessageQueue();
-        info.partition_manager_map = *pm_map;
-        info.callback_runner = callback_runner_.get();
+          LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id;
 
-        LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id;
-
-        UserThread* worker = new UserThread(info.thread_id, task, info);
-        mailbox_.get()->RegisterQueue(info.thread_id, worker_thread_.get()->GetWorkQueue());
-        workers.push_back(worker);
-        worker->Start();
+          UserThread* worker = new UserThread(info.thread_id, task, info);
+          mailbox_.get()->RegisterQueue(info.thread_id, worker_thread_.get()->GetWorkQueue());
+          workers.push_back(worker);
+          worker->Start();
+      }
+      for (auto worker : workers) worker->Stop();      
     }
 
-    for (auto worker : workers) worker->Stop();
+
 }
 
 void Engine::RegisterPartitionManager(uint32_t table_id, 
