@@ -1,5 +1,7 @@
 #pragma once
 
+#include "glog/logging.h"
+
 #include "base/abstract_partition_manager.hpp"
 #include "base/magic.hpp"
 #include "base/message.hpp"
@@ -45,14 +47,15 @@ class KVClientTable {
   void Clock()
   {
     CHECK_NOTNULL(partition_manager_);
-    const auto& server_thread_ids = partition_manager_->GetServerThreadIds();
-    for (uint32_t server_id : server_thread_ids) {
+    auto server_ids = partition_manager_->GetServerThreadIds();
+    for (auto server_id : server_ids)
+    {
       Message msg;
       msg.meta.sender = app_thread_id_;
       msg.meta.recver = server_id;
       msg.meta.model_id = model_id_;
       msg.meta.flag = Flag::kClock;
-      sender_queue_->Push(std::move(msg));
+      sender_queue_->Push(msg);
     }
   }
   
