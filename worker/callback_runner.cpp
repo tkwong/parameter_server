@@ -14,27 +14,32 @@ class CallbackRunner: public AbstractCallbackRunner {
         void RegisterRecvHandle(uint32_t app_thread_id, uint32_t model_id, 
             const std::function<void(Message&)>& recv_handle) override
         {
+            std::unique_lock<std::mutex> lk(mu_);
             recv_handles[std::make_pair(app_thread_id, model_id)] = recv_handle;
         }
         
         void RegisterRecvFinishHandle(uint32_t app_thread_id, uint32_t model_id,
             const std::function<void()>& recv_finish_handle) override
         {
+            std::unique_lock<std::mutex> lk(mu_);
             recv_finish_handles[std::make_pair(app_thread_id, model_id)] = recv_finish_handle;
         }
         
         void NewRequest(uint32_t app_thread_id, uint32_t model_id, 
             uint32_t expected_responses) override
         {
+            std::unique_lock<std::mutex> lk(mu_);
             trackers[std::make_pair(app_thread_id, model_id)] = 
                 new std::pair<uint32_t,uint32_t>({expected_responses, 0});
         }
         
         void WaitRequest(uint32_t app_thread_id, uint32_t model_id) override
         {
-            auto tracker = trackers[std::make_pair(app_thread_id, model_id)];
             std::unique_lock<std::mutex> lk(mu_);
-            cond_.wait(lk, [tracker] { return tracker->first == tracker->second; });
+            cond_.wait(lk, [this, app_thread_id, model_id] { 
+              auto tracker = trackers[std::make_pair(app_thread_id, model_id)];
+              return tracker->first == tracker->second; 
+            });
         }
         
         void AddResponse(uint32_t app_thread_id, uint32_t model_id, Message& msg) override
@@ -43,7 +48,7 @@ class CallbackRunner: public AbstractCallbackRunner {
             auto recv_handle = recv_handles[std::make_pair(app_thread_id, model_id)];
             auto recv_finish_handle = recv_finish_handles[std::make_pair(app_thread_id, model_id)];
             
-            // LOG(INFO) << "tracker:" << tracker->first << " " << tracker->second;
+            LOG(INFO) << "tracker:" << tracker->first << " " << tracker->second;
             
             bool recv_finish = false;
             {
