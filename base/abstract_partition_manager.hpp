@@ -25,7 +25,9 @@ public:
       const std::vector<uint32_t> &server_thread_ids)
       : server_thread_ids_(server_thread_ids) {}
 
-  size_t GetNumServers() const;
+  size_t GetNumServers() const {
+    return server_thread_ids_.size();
+  }
   const std::vector<uint32_t> &GetServerThreadIds() const
   {
     return server_thread_ids_;
