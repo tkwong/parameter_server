@@ -27,7 +27,7 @@ template <typename Val>
 class KVClientTable {
  public:
   using Keys = third_party::SArray<Key>;
-  using KVPairs = std::pair<third_party::SArray<Key>, third_party::SArray<double>>;
+  using KVPairs = std::pair<third_party::SArray<Key>, third_party::SArray<Val>>;
   /**
    * @param app_thread_id       user thread id
    * @param model_id            model id
@@ -36,7 +36,7 @@ class KVClientTable {
    * @param callback_runner     callback runner to handle received replies from servers
    */
   KVClientTable(uint32_t app_thread_id, uint32_t model_id, ThreadsafeQueue<Message>* const sender_queue,
-                AbstractPartitionManager* const partition_manager, AbstractCallbackRunner* const callback_runner)
+                AbstractPartitionManager<Val>* const partition_manager, AbstractCallbackRunner* const callback_runner)
       : app_thread_id_(app_thread_id),
         model_id_(model_id),
         sender_queue_(sender_queue),
@@ -78,11 +78,11 @@ class KVClientTable {
   void Add(const third_party::SArray<Key>& keys, const third_party::SArray<Val>& vals) 
   {
     // Partition Manager takes in doubles for values, so first cast to doubles
-    third_party::SArray<double> double_vals;
-    for (int i=0; i<vals.size(); i++) double_vals.push_back(static_cast<double>(vals[i]));
+    // third_party::SArray<double> double_vals;
+    // for (int i=0; i<vals.size(); i++) double_vals.push_back(vals[i]);
 
     std::vector<std::pair<int, KVPairs>> sliced;
-    partition_manager_->Slice(std::make_pair(keys, double_vals), &sliced);
+    partition_manager_->Slice(std::make_pair(keys, vals), &sliced);
     
     // Send Message to each server
     for (auto it=sliced.begin(); it!=sliced.end(); it++)
@@ -152,7 +152,7 @@ class KVClientTable {
 
   ThreadsafeQueue<Message>* const sender_queue_;             // not owned
   AbstractCallbackRunner* const callback_runner_;            // not owned
-  AbstractPartitionManager* const partition_manager_;  // not owned
+  AbstractPartitionManager<Val>* const partition_manager_;  // not owned
 
 };  // class KVClientTable
 

@@ -11,7 +11,7 @@
 
 namespace csci5570 {
 
-class RangePartitionManager : public AbstractPartitionManager {
+class RangePartitionManager : public AbstractPartitionManager <double> {
     public:
         RangePartitionManager(const std::vector<uint32_t>& server_thread_ids,
             const std::vector<third_party::Range>& ranges) :

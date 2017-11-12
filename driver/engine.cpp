@@ -198,7 +198,7 @@ void Engine::Run(const MLTask& task) {
       auto loc_threads  = spec.GetLocalThreads(node_.id);
       for (int i=0; i<loc_threads.size(); i++)
       {
-          auto pm_map = new std::map<uint32_t, AbstractPartitionManager*>();
+          auto pm_map = new std::map<uint32_t, AbstractPartitionManager<>*>();
           for (auto it = partition_manager_map_.begin(); it!=partition_manager_map_.end(); it++)
               pm_map->insert(std::make_pair(it->first, it->second.get()));
 
@@ -222,10 +222,5 @@ void Engine::Run(const MLTask& task) {
 
 }
 
-void Engine::RegisterPartitionManager(uint32_t table_id, 
-    std::unique_ptr<AbstractPartitionManager> partition_manager) 
-{
-    partition_manager_map_.insert(std::make_pair(table_id, std::move(partition_manager)));
-}
 
 }  // namespace csci5570
