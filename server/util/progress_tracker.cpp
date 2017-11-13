@@ -22,6 +22,8 @@ int ProgressTracker::GetNumThreads() const {
 }
 
 int ProgressTracker::GetProgress(int tid) const {
+    //LOG(INFO) << "Getting progress of " << tid << " which is " 
+    //          << (CheckThreadValid(tid) ? "" : "not") << " valid";
     return progresses_.at(tid); // Throw an error if not found.
 }
 

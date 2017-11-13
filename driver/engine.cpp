@@ -66,8 +66,8 @@ void Engine::StartEverything(int num_server_threads_per_node) {
 
     StartSender();
 
-    for (int i=0; i<num_server_threads_per_node; i++)
-        server_thread_group_.push_back(new ServerThread(i));
+    for (auto server_id : id_mapper_.get()->GetServerThreadsForId(node_.id))
+        server_thread_group_.push_back(new ServerThread(server_id));
 
     uint32_t worker_id = id_mapper_.get()->AllocateWorkerThread(node_.id);
     callback_runner_ = std::unique_ptr<AbstractCallbackRunner>(new CallbackRunner());
@@ -75,7 +75,10 @@ void Engine::StartEverything(int num_server_threads_per_node) {
         new WorkerHelperThread(worker_id, callback_runner_.get()));
 
     for (auto server_ptr : server_thread_group_)
+    {
+        LOG(INFO) << "Registering Server id: " << server_ptr->GetId() << " to mailbox";
         mailbox_.get()->RegisterQueue(server_ptr->GetId(), server_ptr->GetWorkQueue());
+    }
     mailbox_.get()->RegisterQueue(worker_thread_.get()->GetId(), 
                                   worker_thread_.get()->GetWorkQueue());
     
@@ -155,22 +158,28 @@ WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_alloc)
 }
 
 void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_ids) {
+    //LOG(INFO) << "Initializing table with worker_ids: ";
+    //for (auto worker_id : worker_ids) LOG(INFO) << worker_id;
+    //LOG(INFO) << "---------------------------------------------------";
+
     Message terminate;
     terminate.meta.flag = Flag::kExit;
     worker_thread_.get()->GetWorkQueue()->Push(terminate);
     worker_thread_.get()->Stop();
 
-    for (auto server_ptr : server_thread_group_)
+    for (auto server_id : id_mapper_.get()->GetAllServerThreads())
     {
-        auto model_ptr = server_ptr->GetModel(table_id);
-        if (!model_ptr) continue;
+        // auto model_ptr = server_ptr->GetModel(table_id);
+        // if (!model_ptr) continue;
 
-        LOG(INFO) << "Sending Reset Message";
+        LOG(INFO) << "Sending Reset Message to server_id: " << server_id;
         Message reset_msg;
         reset_msg.meta.sender = worker_thread_.get()->GetId();
-        reset_msg.meta.recver = server_ptr->GetId();
+        reset_msg.meta.recver = server_id;
+        reset_msg.meta.flag = Flag::kResetWorkerInModel;
+        reset_msg.meta.model_id = table_id;
         reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
-        model_ptr->ResetWorker(reset_msg);
+        sender_.get()->GetMessageQueue()->Push(reset_msg);
 
         Message reply;
         worker_thread_.get()->GetWorkQueue()->WaitAndPop(&reply);
