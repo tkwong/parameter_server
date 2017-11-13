@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "base/abstract_partition_manager.hpp"
-#include "base/consistent_hashing_partition_manager.hpp"
+#include "base/consistent_hashing_partition_manager.cpp"
 #include "base/node.hpp"
 #include "comm/mailbox.hpp"
 #include "comm/sender.hpp"
@@ -91,10 +91,10 @@ class Engine {
    * @return                    the created table(model) id
    */
   template <typename Val>
-  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager<Val>> partition_manager, 
+  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager> partition_manager, 
                        ModelType model_type, StorageType storage_type, int model_staleness = 0) 
   {
-    RegisterPartitionManager<Val>(model_count_, std::move(partition_manager));
+    RegisterPartitionManager(model_count_, std::move(partition_manager));
     for (auto server_ptr : server_thread_group_)
     {
         AbstractStorage* storage_ptr;
@@ -143,8 +143,9 @@ class Engine {
   template <typename Val>
   uint32_t CreateTable(ModelType model_type, StorageType storage_type, int model_staleness = 0)
   {
-    auto pm_ptr = new ConsistentHashingPartitionManager<Val>(id_mapper_.get()->GetAllServerThreads());
-    return CreateTable<Val>(std::unique_ptr<AbstractPartitionManager<Val>>(pm_ptr), model_type, 
+    AbstractPartitionManager* pm_ptr = 
+        new ConsistentHashingPartitionManager(id_mapper_.get()->GetAllServerThreads());
+    return CreateTable<Val>(std::unique_ptr<AbstractPartitionManager>(pm_ptr), model_type, 
                 storage_type, model_staleness);
   }
 
@@ -174,13 +175,9 @@ class Engine {
    * @param table_id            the model id
    * @param partition_manager   the partition manager for the specific model
    */
-  template <typename Val>
-  void RegisterPartitionManager(uint32_t table_id, std::unique_ptr<AbstractPartitionManager<Val>> partition_manager)
-  {
-      partition_manager_map_.insert(std::make_pair(table_id, std::move(partition_manager)));
-  }
-  
-  std::map<uint32_t, std::unique_ptr<AbstractPartitionManager<> >> partition_manager_map_;
+  void RegisterPartitionManager(uint32_t table_id, std::unique_ptr<AbstractPartitionManager> partition_manager);
+
+  std::map<uint32_t, std::unique_ptr<AbstractPartitionManager>> partition_manager_map_;
   // nodes
   Node node_;
   std::vector<Node> nodes_;
