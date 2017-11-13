@@ -29,6 +29,8 @@ int main(int argc, char** argv)
 
     std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354}};
 
+    std::vector<Engine*> engines;
+
     std::vector<std::thread*> threads(nodes.size());
     for (int i = 0; i < nodes.size(); i++)
     {
@@ -41,15 +43,15 @@ int main(int argc, char** argv)
         DataStore node_samples(samples.begin() + 15000 * i, samples.begin() + 15000 * (i + 1));
         DataStore test_samples(samples.begin() + 30000, samples.end());
 
-        threads[i] = new std::thread([&nodes, i, node_samples, test_samples]()
+        threads[i] = new std::thread([&nodes, i, node_samples, test_samples, &engines]()
         {
             std::cout << "Got " << node_samples.size() << " samples" << std::endl;
 
-            Engine engine(nodes[i], nodes);
-            engine.StartEverything();
+            Engine* engine = new Engine(nodes[i], nodes);
+            engine->StartEverything();
 
-            auto table_id = engine.CreateTable<double>(ModelType::BSP, StorageType::Map, 3);
-            engine.Barrier();
+            auto table_id = engine->CreateTable<double>(ModelType::BSP, StorageType::Map, 3);
+            engine->Barrier();
 
             MLTask task;
             task.SetWorkerAlloc({{0, 3}, {1, 3}});
@@ -143,11 +145,10 @@ int main(int argc, char** argv)
                           << std::endl;
             });
 
-            engine.Run(task);
-            engine.StopEverything();
+            engine->Run(task);
         });
     }
-
+    for (auto engine : engines) engine->StopEverything();
     for (auto thread : threads) thread->join();
     master_thread.join();
     return 0;
