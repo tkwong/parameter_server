@@ -123,7 +123,7 @@ class KVClientTable {
     callback_runner_->RegisterRecvFinishHandle(app_thread_id_, model_id_, []{});
     
     callback_runner_->NewRequest(app_thread_id_, model_id_, sliced.size());
-    LOG(INFO) << "Sending Messages To Servers";   
+    //LOG(INFO) << "Sending Messages To Servers";   
     // Send request to each server
     for (auto it=sliced.begin(); it!=sliced.end(); it++)
     {
@@ -137,10 +137,10 @@ class KVClientTable {
         
         sender_queue_->Push(msg);
     }
-    LOG(INFO) << "Wait Message from Servers";
+    //LOG(INFO) << "Wait Message from Servers";
     // wait request response
     callback_runner_->WaitRequest(app_thread_id_, model_id_);
-    LOG(INFO) << "Received Message from Servers";
+    //LOG(INFO) << "Received Message from Servers";
     vals->clear();
     for (auto it=reply.begin(); it!=reply.end(); it++) vals->push_back(it->second);
   }
