@@ -29,21 +29,19 @@ int main(int argc, char** argv)
 
     std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354}};
 
-    std::vector<Engine*> engines;
-
     std::vector<std::thread*> threads(nodes.size());
     for (int i = 0; i < nodes.size(); i++)
     {
         DataStore samples;
         lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
-            "hdfs://proj10:9000/datasets/classification/a9/", 123, 
-            lib::Parser<Sample, DataStore>::parse_libsvm, &samples, i, nodes.size()
+            "hdfs://proj10:9000/datasets/classification/avazu-app-part/", 1000000, 
+            lib::Parser<Sample, DataStore>::parse_libsvm, &samples, i, nodes.size(), "proj10"
         );
 
-        DataStore node_samples(samples.begin() + 15000 * i, samples.begin() + 15000 * (i + 1));
-        DataStore test_samples(samples.begin() + 30000, samples.end());
+        DataStore node_samples(samples.begin() + 300000 * i, samples.begin() + 300000 * (i + 1));
+        DataStore test_samples(samples.begin() + 600000, samples.end());
 
-        threads[i] = new std::thread([&nodes, i, node_samples, test_samples, &engines]()
+        threads[i] = new std::thread([&nodes, i, node_samples, test_samples]()
         {
             std::cout << "Got " << node_samples.size() << " samples" << std::endl;
 
@@ -58,13 +56,15 @@ int main(int argc, char** argv)
             task.SetTables({table_id});
             task.SetLambda([table_id, node_samples, test_samples](const Info& info)
             {
+                auto start_time = std::chrono::steady_clock::now();
+
                 std::cout << "Worker id: " << info.worker_id << " table id: " << table_id
                           << std::endl;
 
                 KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
 
-                DataStore thread_samples(node_samples.begin() + 5000 * (info.worker_id % 3), 
-                                         node_samples.begin() + 5000 * (info.worker_id % 3 + 1));
+                DataStore thread_samples(node_samples.begin() + 100000 * (info.worker_id % 3), 
+                                         node_samples.begin() + 100000 * (info.worker_id % 3 + 1));
 
                 std::cout << "Worker " << info.worker_id << " got " << thread_samples.size()
                           << " samples." << std::endl;
@@ -72,8 +72,8 @@ int main(int argc, char** argv)
                 //std::cout << "Initializing keys" << std::endl;
                 // Initialize all keys with 0
                 std::vector<Key> keys;
-                for (int i=0; i<124; i++) keys.push_back(i);
-                std::vector<double> init_vals(124);
+                for (int i=0; i<1000000; i++) keys.push_back(i);
+                std::vector<double> init_vals(1000000);
                 table.Add(keys, init_vals);
                 //std::cout << "Key Initialized" << std::endl;
 
@@ -124,9 +124,9 @@ int main(int argc, char** argv)
                 std::vector<double> vals;
                 table.Get(keys, &vals);
 
-                std::cout << "Printing out first 10 coeff:" << std::endl;
-                for (int i=0; i<10; i++) std::cout << vals.at(i) << ' ';
-                std::cout << std::endl;
+                //std::cout << "Printing out first 10 coeff:" << std::endl;
+                //for (int i=0; i<10; i++) std::cout << vals.at(i) << ' ';
+                //std::cout << std::endl;
 
                 int correct = 0;
                 for (Sample sample : test_samples)
@@ -140,15 +140,19 @@ int main(int argc, char** argv)
                     int answer = (sample.label > 0 ? 1 : 0);
                     if (est_class == answer) correct++;
                 }
-                std::cout << "Accuracy: " << correct << " out of " << test_samples.size() 
-                          << " " << float(correct)/test_samples.size()*100 << " percent" 
-                          << std::endl;
+                LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size() 
+                          << " " << float(correct)/test_samples.size()*100 << " percent"; 
+
+                LOG(INFO) << "Worker " << info.worker_id << " used time: " 
+                          << std::chrono::duration_cast<std::chrono::microseconds>(
+                          std::chrono::steady_clock::now() - start_time).count()/1000.0;
             });
 
             engine->Run(task);
+            engine->Barrier();
+            engine->StopEverything();
         });
     }
-    for (auto engine : engines) engine->StopEverything();
     for (auto thread : threads) thread->join();
     master_thread.join();
     return 0;

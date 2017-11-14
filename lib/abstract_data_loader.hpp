@@ -27,7 +27,7 @@ class AbstractDataLoader {
    */
   template <typename Parse>  // e.g. std::function<Sample(boost::string_ref, int)>
   static void load(std::string url, int n_features, Parse parse, DataStore* datastore,
-        int second_id, int num_threads) {
+        int second_id, int num_threads, std::string worker_host) {
     // 1. Connect to the data source, e.g. HDFS, via the modules in io
     LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL(url);
     std::string hdfs_namenode = URL.m_Host;
@@ -37,7 +37,7 @@ class AbstractDataLoader {
     
     int proc_id = getpid();
     std::string master_host = "proj10";
-    std::string worker_host = "proj10";
+    //std::string worker_host = "proj10";
     
     Coordinator coordinator(proc_id, worker_host, &zmq_context, master_host, master_port);
     coordinator.serve();

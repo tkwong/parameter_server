@@ -33,18 +33,25 @@ int main(int argc, char** argv)
         {2, "localhost", 12355}
     };
 
-    std::vector<std::thread> threads(nodes.size());
+    std::vector<std::thread*> threads;
     for (int i = 0; i < nodes.size(); i++)
     {
-        DataStore samples;
-        lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
-            "hdfs://proj10:9000/datasets/classification/a9/", 123, 
-            lib::Parser<Sample, DataStore>::parse_libsvm, &samples, i, nodes.size()
-        );
+	threads.push_back(new std::thread([=]()
+        {
+            DataStore samples;
+            lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
+                "hdfs://proj10:9000/datasets/classification/avazu-app-part/", 1000000, 
+                lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(),
+                nodes[i].hostname + ':'  + std::to_string(nodes[i].port)
+            );
 
-        std::cout << "Got " << samples.size() << " samples" << std::endl;
+            LOG(INFO) << "Worker " << i << " Got " << samples.size() << " samples" << std::endl;
+	}));
     }
 
+    for(auto t : threads) t->join();
+    LOG(INFO) << "Loading threads stopped"; 
     master_thread.join();
+    LOG(INFO) << "Master thread stopped";
     return 0;
 }
