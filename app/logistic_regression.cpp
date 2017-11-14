@@ -18,8 +18,8 @@ typedef std::vector<Sample> DataStore;
 typedef std::function<Sample(boost::string_ref, int)> Parse;
 
 // System info
-DEFINE_int32(my_id, -1, "The host ID of this program");
-DEFINE_string(config_file, "config/cluster.cfg", "The config file path");
+DEFINE_int32(my_id, 0, "The host ID of this program");
+DEFINE_string(config_file, "machinefiles/5node", "The config file path");
 // Data loading config
 DEFINE_string(hdfs_namenode, "localhost", "The hdfs namenode hostname");
 DEFINE_int32(hdfs_namenode_port, 9000, "The hdfs namenode port");
@@ -34,7 +34,7 @@ DEFINE_int32(n_iters, 10, "The number of iterations");
 DEFINE_int32(batch_size, 100, "Batch size");
 DEFINE_double(alpha, 0.0001, "learning rate");
 
-DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
+// DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
 // DEFINE_validator(input, [](const char* flagname, std::string value){ return false;});
 DEFINE_validator(n_features, [](const char* flagname, int value){ return value>=0;});
@@ -51,35 +51,45 @@ int main(int argc, char** argv)
         
     // Parse config_file
     std::vector<Node> nodes;
-    // std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354},
-    //                         {2, "localhost", 12355}, {3, "localhost", 12356},
-    //                         {4, "localhost", 12357}};
     
-    std::ifstream input_file(FLAGS_config_file.c_str());
-    CHECK(input_file.is_open()) << "Error opening file: " << FLAGS_config_file;
-    std::string line;
-    while (getline(input_file, line)) {
-      size_t id_pos = line.find(":");
-      CHECK_NE(id_pos, std::string::npos);
-      std::string id = line.substr(0, id_pos);
-      size_t host_pos = line.find(":", id_pos+1);
-      CHECK_NE(host_pos, std::string::npos);
-      std::string hostname = line.substr(id_pos+1, host_pos - id_pos - 1);
-      std::string port = line.substr(host_pos+1, line.size() - host_pos - 1);
+    if(FLAGS_config_file == ""){
+      Node node;
+      node.id = 0;
+      node.hostname = "localhost";
+      node.port = 62353;
+      LOG(INFO) << "Loaded Default Nodes :" << node.DebugString() ;
+      nodes.push_back(std::move(node));
+    } else {
+      // std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354},
+      //                         {2, "localhost", 12355}, {3, "localhost", 12356},
+      //                         {4, "localhost", 12357}};
+    
+      std::ifstream input_file(FLAGS_config_file.c_str());
+      CHECK(input_file.is_open()) << "Error opening file: " << FLAGS_config_file;
+      std::string line;
+      while (getline(input_file, line)) {
+        size_t id_pos = line.find(":");
+        CHECK_NE(id_pos, std::string::npos);
+        std::string id = line.substr(0, id_pos);
+        size_t host_pos = line.find(":", id_pos+1);
+        CHECK_NE(host_pos, std::string::npos);
+        std::string hostname = line.substr(id_pos+1, host_pos - id_pos - 1);
+        std::string port = line.substr(host_pos+1, line.size() - host_pos - 1);
       
-      try {
-        Node node;
-        node.id = std::stoi(id);
-        node.hostname = std::move(hostname);
-        node.port = std::stoi(port);
-        nodes.push_back(std::move(node));
-        LOG(INFO) << "Loaded Node from config: " << node.DebugString() ; 
+        try {
+          Node node;
+          node.id = std::stoi(id);
+          node.hostname = std::move(hostname);
+          node.port = std::stoi(port);
+          LOG(INFO) << "Loaded Node from config: " << node.DebugString() ; 
+          nodes.push_back(std::move(node));
+        }
+        catch(const std::invalid_argument& ia) {
+          LOG(FATAL) << "Invalid argument: " << ia.what() << "\n";
+        }
       }
-      catch(const std::invalid_argument& ia) {
-        LOG(FATAL) << "Invalid argument: " << ia.what() << "\n";
-      }
-    }
-    LOG(INFO) << "Loaded Host from config file";
+      LOG(INFO) << "Loaded Node from config file";
+        }
     // 
     const Node* my_node;
     for (const auto& node : nodes) {
