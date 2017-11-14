@@ -111,7 +111,7 @@ int main(int argc, char** argv)
     DataStore samples;
     lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
         FLAGS_input, FLAGS_n_features, 
-        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), FLAGS_hdfs_master_host, FLAGS_hdfs_master_port, "proj10"
+        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), FLAGS_hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
     );
 
     DataStore node_samples(samples.begin() , samples.end() - 10000 );

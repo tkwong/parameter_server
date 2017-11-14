@@ -43,7 +43,7 @@ ssh_cmd = (
 env_params = (
   "GLOG_logtostderr=true "
   "GLOG_v=1 "
-  "GLOG_minloglevel=0 "
+  "GLOG_minloglevel=1 "
   )
 
 # TODO: May need to ls before run to make sure the related files are synced.
@@ -57,9 +57,6 @@ with open(hostfile, "r") as f:
       hostlist.append(line.split(":"))
 
   for [node_id, host, port] in hostlist:
-    # TODO: upload prog file and config 
-    # print "upload prog and config"
-    
     print "node_id:%s, host:%s, port:%s" %(node_id, host, port)
     cmd = ssh_cmd + host + " "
     # cmd += clear_cmd
