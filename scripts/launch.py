@@ -16,7 +16,7 @@ from os.path import dirname, join
 #
 # hostfile = "machinefiles/local"
 hostfile = "machinefiles/5node"
-progfile = "debug/BasicExample"
+progfile = "build/LogisticRegression"
 
 script_path = os.path.realpath(__file__)
 proj_dir = dirname(dirname(script_path))
@@ -52,6 +52,9 @@ with open(hostfile, "r") as f:
       hostlist.append(line.split(":"))
 
   for [node_id, host, port] in hostlist:
+    # TODO: upload prog file and config 
+    # print "upload prog and config"
+    
     print "node_id:%s, host:%s, port:%s" %(node_id, host, port)
     cmd = ssh_cmd + host + " "
     # cmd += clear_cmd

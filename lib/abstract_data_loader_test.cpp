@@ -34,7 +34,7 @@ TEST_F(TestAbstractDataLoader, load)
     AbstractDataLoader<Sample, std::vector<Sample>>
         ::load<std::function<Sample(boost::string_ref, int)>>(
         "hdfs://proj10:9000/datasets/classification/a9/", 123, 
-        Parser<Sample, std::vector<Sample>>::parse_libsvm, &store, 0, 1, "proj10");
+        Parser<Sample, std::vector<Sample>>::parse_libsvm, &store, 0, 1, "proj10", 19818,  "proj10");
 
     EXPECT_EQ(store.size(), 32561);
     master_thread.join();

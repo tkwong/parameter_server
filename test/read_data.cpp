@@ -41,7 +41,7 @@ int main(int argc, char** argv)
             DataStore samples;
             lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
                 "hdfs://proj10:9000/datasets/classification/avazu-app-part/", 1000000, 
-                lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(),
+                lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), "proj10", 19818,
                 nodes[i].hostname + ':'  + std::to_string(nodes[i].port)
             );
 
