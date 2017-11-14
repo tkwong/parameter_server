@@ -27,7 +27,9 @@ int main(int argc, char** argv)
         assigner.Serve();
     });
 
-    std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354}};
+    std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354},
+                            {2, "localhost", 12355}, {3, "localhost", 12356},
+                            {4, "localhost", 12357}};
 
     std::vector<std::thread*> threads(nodes.size());
     for (int i = 0; i < nodes.size(); i++)
@@ -38,7 +40,7 @@ int main(int argc, char** argv)
             lib::Parser<Sample, DataStore>::parse_libsvm, &samples, i, nodes.size(), "proj10"
         );
 
-        DataStore node_samples(samples.begin() + 300000 * i, samples.begin() + 300000 * (i + 1));
+        DataStore node_samples(samples.begin() + 120000 * i, samples.begin() + 120000 * (i + 1));
         DataStore test_samples(samples.begin() + 600000, samples.end());
 
         threads[i] = new std::thread([&nodes, i, node_samples, test_samples]()
@@ -52,19 +54,18 @@ int main(int argc, char** argv)
             engine->Barrier();
 
             MLTask task;
-            task.SetWorkerAlloc({{0, 3}, {1, 3}});
+            task.SetWorkerAlloc({{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}});
             task.SetTables({table_id});
             task.SetLambda([table_id, node_samples, test_samples](const Info& info)
             {
                 auto start_time = std::chrono::steady_clock::now();
 
-                std::cout << "Worker id: " << info.worker_id << " table id: " << table_id
-                          << std::endl;
+                LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
 
                 KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
 
-                DataStore thread_samples(node_samples.begin() + 100000 * (info.worker_id % 3), 
-                                         node_samples.begin() + 100000 * (info.worker_id % 3 + 1));
+                DataStore thread_samples(node_samples.begin() + 40000 * (info.worker_id % 3), 
+                                         node_samples.begin() + 40000 * (info.worker_id % 3 + 1));
 
                 std::cout << "Worker " << info.worker_id << " got " << thread_samples.size()
                           << " samples." << std::endl;
@@ -72,8 +73,8 @@ int main(int argc, char** argv)
                 //std::cout << "Initializing keys" << std::endl;
                 // Initialize all keys with 0
                 std::vector<Key> keys;
-                for (int i=0; i<1000000; i++) keys.push_back(i);
-                std::vector<double> init_vals(1000000);
+                for (int i=0; i<1000000; i++) keys.push_back(i); // FIXME: Hard-coded n_features
+                std::vector<double> init_vals(1000000);          // FIXME: Hard-coded n_features
                 table.Add(keys, init_vals);
                 //std::cout << "Key Initialized" << std::endl;
 
@@ -82,6 +83,8 @@ int main(int argc, char** argv)
                 double learning_rate = 0.001;
                 for (Sample sample : thread_samples)
                 {
+                    auto iter_start_time = std::chrono::steady_clock::now();
+
                     // Pull
                     std::vector<double> vals;
                     table.Get(keys, &vals);
@@ -117,7 +120,13 @@ int main(int argc, char** argv)
                     table.Add(keys, vals);
                     table.Clock();
 
-                    //if (++i > 0) break;
+                    if (++i < 2)
+                    {
+                        LOG(INFO) << "Worker " << info.worker_id << " used " 
+                                  << std::chrono::duration_cast<std::chrono::microseconds>(
+                                     std::chrono::steady_clock::now() - 
+                                     iter_start_time).count()/1000.0 << "ms for one iteration";
+                    }
                 }
 
                 // Test
