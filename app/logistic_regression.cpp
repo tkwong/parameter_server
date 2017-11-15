@@ -19,7 +19,7 @@ typedef std::function<Sample(boost::string_ref, int)> Parse;
 
 // System info
 DEFINE_int32(my_id, 0, "The host ID of this program");
-DEFINE_string(config_file, "machinefiles/5node", "The config file path");
+DEFINE_string(config_file, "", "The config file path");
 // Data loading config
 DEFINE_string(hdfs_namenode, "localhost", "The hdfs namenode hostname");
 DEFINE_int32(hdfs_namenode_port, 9000, "The hdfs namenode port");
@@ -36,7 +36,7 @@ DEFINE_double(alpha, 0.0001, "learning rate");
 
 // DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
-// DEFINE_validator(input, [](const char* flagname, std::string value){ return false;});
+DEFINE_validator(input, [](const char* flagname, const std::string& value){ return !value.empty();});
 DEFINE_validator(n_features, [](const char* flagname, int value){ return value>=0;});
 
 int main(int argc, char** argv)
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
     // Parse config_file
     std::vector<Node> nodes;
     
-    if(FLAGS_config_file == ""){
+    if(FLAGS_config_file.empty()){
       Node node;
       node.id = 0;
       node.hostname = "localhost";
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
     DataStore node_samples(samples.begin() , samples.end() - 10000 );
     DataStore test_samples(samples.end() - 10000, samples.end());
         
-    std::cout << "Got " << node_samples.size() << " samples" << std::endl;
+    LOG(INFO) << "Got " << node_samples.size() << " samples";
 
     Engine* engine = new Engine(*my_node, nodes);
     engine->StartEverything();
@@ -133,7 +133,9 @@ int main(int argc, char** argv)
     // task.SetWorkerAlloc({{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}});
     task.SetWorkerAlloc(worker_alloc);
     task.SetTables({table_id});
-    task.SetLambda([table_id, node_samples, test_samples](const Info& info)
+    
+    int n_features = FLAGS_n_features;
+    task.SetLambda([table_id, node_samples, test_samples, n_features](const Info& info)
     {
         auto start_time = std::chrono::steady_clock::now();
 
@@ -144,20 +146,20 @@ int main(int argc, char** argv)
         DataStore thread_samples(node_samples.begin() + 40000 * (info.worker_id % 3), 
                                  node_samples.begin() + 40000 * (info.worker_id % 3 + 1));
 
-        std::cout << "Worker " << info.worker_id << " got " << thread_samples.size()
-                  << " samples." << std::endl;
+        LOG(INFO) << "Worker " << info.worker_id << " got " << thread_samples.size() << " samples.";
 
         //std::cout << "Initializing keys" << std::endl;
         // Initialize all keys with 0
         std::vector<Key> keys;
-        for (int i=0; i<1000000; i++) keys.push_back(i); // FIXME: Hard-coded n_features
-        std::vector<double> init_vals(1000000);          // FIXME: Hard-coded n_features
+        for (int i=0; i<FLAGS_n_features; i++) keys.push_back(i); 
+        std::vector<double> init_vals(FLAGS_n_features);          
         table.Add(keys, init_vals);
         //std::cout << "Key Initialized" << std::endl;
 
         // Train
         int i = 0;
         double learning_rate = 0.001;
+        std::chrono::steady_clock::timepoint iter_duration; 
         for (Sample sample : thread_samples)
         {
             auto iter_start_time = std::chrono::steady_clock::now();
@@ -165,9 +167,9 @@ int main(int argc, char** argv)
             // Pull
             std::vector<double> vals;
             table.Get(keys, &vals);
-            //std::cout << "Got vals: ";
-            //for (auto val : vals) std::cout << val << ' ';
-            //std::cout << std::endl;
+            // std::cout << "Got vals: ";
+            // for (auto val : vals) std::cout << val << ' ';
+            // std::cout << std::endl;
 
             // Predict
             double yhat = vals.at(0);
@@ -197,12 +199,16 @@ int main(int argc, char** argv)
             table.Add(keys, vals);
             table.Clock();
 
-            if (++i < 2)
+            if (++i % 100)
             {
+                iter_duration = std::chrono::duration_cast<std::chrono::microseconds>(0);
+                
                 LOG(INFO) << "Worker " << info.worker_id << " used " 
                           << std::chrono::duration_cast<std::chrono::microseconds>(
                              std::chrono::steady_clock::now() - 
-                             iter_start_time).count()/1000.0 << "ms for one iteration";
+                             iter_start_time).count()/1000.0 << "ms for last 100 iteration";
+            } else {
+              iter_duration += std::chrono::steady_clock::now() - iter_start_time
             }
         }
 
@@ -235,7 +241,7 @@ int main(int argc, char** argv)
     });
 
     engine->Run(task);
-    engine->Barrier();
+    // engine->Barrier();
     engine->StopEverything();
    
     return 0;
