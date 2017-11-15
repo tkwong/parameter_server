@@ -159,10 +159,11 @@ int main(int argc, char** argv)
         // Train
         int i = 0;
         double learning_rate = 0.001;
-        std::chrono::steady_clock::timepoint iter_duration; 
+        
         for (Sample sample : thread_samples)
         {
             auto iter_start_time = std::chrono::steady_clock::now();
+          
 
             // Pull
             std::vector<double> vals;
@@ -199,17 +200,13 @@ int main(int argc, char** argv)
             table.Add(keys, vals);
             table.Clock();
 
-            if (++i % 100)
+            if ((++i % 1000) == 0)
             {
-                iter_duration = std::chrono::duration_cast<std::chrono::microseconds>(0);
-                
-                LOG(INFO) << "Worker " << info.worker_id << " used " 
+                LOG(INFO) << "Worker " << info.worker_id << " used "
                           << std::chrono::duration_cast<std::chrono::microseconds>(
-                             std::chrono::steady_clock::now() - 
-                             iter_start_time).count()/1000.0 << "ms for last 100 iteration";
-            } else {
-              iter_duration += std::chrono::steady_clock::now() - iter_start_time
-            }
+                             std::chrono::steady_clock::now() -
+                             iter_start_time).count()/1000.0 << "ms for " << i << "th iteration";
+            } 
         }
 
         // Test
