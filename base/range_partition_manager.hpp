@@ -45,7 +45,8 @@ class RangePartitionManager : public AbstractPartitionManager {
             }
         }
 
-        void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) const override
+        template<typename Val = double>
+        virtual void Slice(const KVPairs<Val> &kvs, std::vector<std::pair<int, KVPairs<Val> >> *sliced) const override
         {
             sliced->clear();
             int range = 0, server = -1;
@@ -60,7 +61,7 @@ class RangePartitionManager : public AbstractPartitionManager {
                         server = range;
                         sliced->push_back(std::make_pair(
                             server_thread_ids_[server],
-                            KVPairs({kvs.first[i]},{kvs.second[i]})));
+                            KVPairs<Val>({kvs.first[i]},{kvs.second[i]})));
                     }
                     else
                     {

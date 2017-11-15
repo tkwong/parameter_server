@@ -34,21 +34,21 @@ TEST_F(TestConsistentHashingPartitionManager, Construct) {
 TEST_F(TestConsistentHashingPartitionManager, GetNumServers) {
 	std::vector<uint32_t> vec ({0,1,2});
     ConsistentHashingPartitionManager pm(vec);
- 
+
     EXPECT_EQ(pm.GetNumServers(), vec.size());
 }
 
 TEST_F(TestConsistentHashingPartitionManager, GetServerThreadIds) {
 	std::vector<uint32_t> vec ({0,1,2});
 	ConsistentHashingPartitionManager pm(vec);
-	
+
     EXPECT_EQ(pm.GetServerThreadIds(), vec);
 }
 
 TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
-	
+
     using Keys = AbstractPartitionManager::Keys;
-	
+
     ConsistentHashingPartitionManager pm({0, 1, 2});
     third_party::SArray<Key> in_keys({2, 8, 9});
 	std::vector<std::pair<int, Keys>> sliced;
@@ -56,7 +56,7 @@ TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
     // TEST with keys 1,2,3,4,5 and not empty
     pm.Slice(in_keys, &sliced);
     ASSERT_FALSE(sliced.empty());
-	
+
 	/*
 		I1016 20:33:45.771512 3080803264 consistent_hashing_partition_manager.cpp:26] Key: 2, Node ID:0
 		I1016 20:33:45.772068 3080803264 consistent_hashing_partition_manager.cpp:37] ADD 2 to 0
@@ -70,11 +70,11 @@ TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
     ASSERT_EQ(sliced[0].second.size(), 2);  // key 2, 8
     EXPECT_EQ(sliced[0].second[0], 2);
     EXPECT_EQ(sliced[0].second[1], 8);
-	
+
     EXPECT_EQ(sliced[1].first, 2);          // keys to server 1
     ASSERT_EQ(sliced[1].second.size(), 1);  // keys 9
     EXPECT_EQ(sliced[1].second[0], 9);
-	
+
     third_party::SArray<Key> keys({2, 8, 9, 10, 11,12,13});
     pm.Slice(keys, &sliced);
 
@@ -102,7 +102,7 @@ TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
     EXPECT_EQ(sliced[0].second[0], 2);
     EXPECT_EQ(sliced[1].second[0], 9);
     EXPECT_EQ(sliced[1].second[1], 10);
-	
+
 }
 
 
@@ -110,10 +110,10 @@ TEST_F(TestConsistentHashingPartitionManager, SliceKVs) {
   ConsistentHashingPartitionManager pm({0, 1, 2});
   third_party::SArray<Key> keys({2, 5, 9});
   third_party::SArray<double> vals({.2, .5, .9});
-  std::vector<std::pair<int, AbstractPartitionManager::KVPairs>> sliced;
+  std::vector<std::pair<int, AbstractPartitionManager::KVPairs<>>> sliced;
   pm.Slice(std::make_pair(keys, vals), &sliced);
 
-  // Expected Results : 
+  // Expected Results :
   /*
 	I1016 20:33:45.772344 3080803264 consistent_hashing_partition_manager.cpp:54] Key: 2, Node ID:0
 	I1016 20:33:45.772356 3080803264 consistent_hashing_partition_manager.cpp:69] ADD 2 to 0

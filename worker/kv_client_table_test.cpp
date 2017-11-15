@@ -31,8 +31,8 @@ class FakePartitionManager : public AbstractPartitionManager {
     sliced->at(1).first = 1;
     sliced->at(1).second = keys.segment(pos, n);
   }
-
-  void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs>>* sliced) const override {
+  template<Val = double>
+  void Slice(const KVPairs& kvs, std::vector<std::pair<int, KVPairs<>>>* sliced) const override {
     EXPECT_EQ(kvs.first.size(), kvs.second.size());
     size_t n = kvs.first.size();
     sliced->resize(2);

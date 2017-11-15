@@ -34,7 +34,7 @@ TEST_F(TestRangePartitionManager, SliceKVs) {
   RangePartitionManager pm({0, 1, 2}, {{0, 4}, {4, 8}, {8, 10}});
   third_party::SArray<Key> keys({2, 5, 9});
   third_party::SArray<double> vals({.2, .5, .9});
-  std::vector<std::pair<int, AbstractPartitionManager::KVPairs>> sliced;
+  std::vector<std::pair<int, AbstractPartitionManager::KVPairs<>>> sliced;
   pm.Slice(std::make_pair(keys, vals), &sliced);
 
   ASSERT_EQ(sliced.size(), 3);  // 3 slices for 3 servers
