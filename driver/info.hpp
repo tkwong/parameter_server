@@ -18,7 +18,7 @@ struct Info {
   uint32_t thread_id;
   uint32_t worker_id;
   ThreadsafeQueue<Message>* send_queue;
-  std::map<uint32_t, AbstractPartitionManager*> partition_manager_map;
+  std::map<uint32_t, AbstractPartitionManager<>*> partition_manager_map;
   AbstractCallbackRunner* callback_runner;
   std::string DebugString() const {
     std::stringstream ss;
