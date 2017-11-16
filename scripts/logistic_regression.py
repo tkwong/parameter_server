@@ -15,7 +15,8 @@ from os.path import dirname, join
 # 4:worker5:37542
 #
 #hostfile = "machinefiles/local"
-hostfile = "machinefiles/5node"
+#hostfile = "machinefiles/5node"
+hostfile = "machinefiles/2node"
 progfile = "build/LogisticRegression"
 
 script_path = os.path.realpath(__file__)
