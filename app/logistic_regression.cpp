@@ -123,13 +123,14 @@ int main(int argc, char** argv)
     
     // Load Data Samples
     DataStore samples;
-    std::string hdfs_master_host("localhost"); 
+    std::string hdfs_master_host(""); 
     for (const auto& node : nodes) {
       if (FLAGS_hdfs_master_node_id == node.id) {
         LOG(INFO) << "Using HDFS Assigner from "<< node.id << " : " << node.hostname;
         hdfs_master_host = node.hostname;
       }
     }
+    CHECK(!hdfs_master_host.empty()) << "No HDFS Assigner Host defined";
       
     lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
         FLAGS_input, FLAGS_n_features, 
