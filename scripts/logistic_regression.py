@@ -14,7 +14,7 @@ from os.path import dirname, join
 # 3:worker4:37542
 # 4:worker5:37542
 #
-# hostfile = "machinefiles/local"
+#hostfile = "machinefiles/local"
 hostfile = "machinefiles/5node"
 progfile = "build/LogisticRegression"
 
@@ -27,8 +27,10 @@ print "hostfile_path:%s, prog_path:%s" % (hostfile_path, prog_path)
 
 params = {
     "config_file":hostfile_path,
-    "input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
-    "n_features": 1000000,
+    #"input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
+    #"n_features": 1000000,
+    "input": "hdfs://proj10:9000/datasets/classification/a9/",
+    "n_features": 124,
     "n_workers_per_node": 1
 }
 
@@ -40,8 +42,8 @@ ssh_cmd = (
 
 env_params = (
   "GLOG_logtostderr=true "
-  "GLOG_v=1 "
-  "GLOG_minloglevel=1 "
+  #"GLOG_v=1 "
+  #"GLOG_minloglevel=1 "
   )
 
 # TODO: May need to ls before run to make sure the related files are synced.
@@ -58,7 +60,7 @@ with open(hostfile, "r") as f:
     print "node_id:%s, host:%s, port:%s" %(node_id, host, port)
     cmd = ssh_cmd + host + " "
     # cmd += clear_cmd
-    cmd += env_params + " " + prog_path
+    cmd += "env " + env_params + " " + prog_path
     cmd += " --my_id="+node_id
     cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
     cmd += " &"
