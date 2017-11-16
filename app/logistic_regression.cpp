@@ -1,6 +1,10 @@
 #include <thread>
 #include <iostream>
 #include <math.h>
+#include <numeric>
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -9,6 +13,7 @@
 #include "lib/abstract_data_loader.hpp"
 #include "driver/engine.cpp"
 #include <fstream>
+
 
 
 using namespace csci5570;
@@ -178,8 +183,11 @@ int main(int argc, char** argv)
 
         // Train
         int i = 0;
+        std::vector<long long> m_times;
+        std::vector<long long> m_wait_times;
         double learning_rate = 0.001;
         
+
         for (Sample sample : node_samples)
         {
             auto iter_start_time = std::chrono::steady_clock::now();
@@ -187,7 +195,10 @@ int main(int argc, char** argv)
 
             // Pull
             std::vector<double> vals;
+            
+            auto iter_wait_time_1 = std::chrono::steady_clock::now();
             table.Get(keys, &vals);
+            auto iter_wait_time_2 = std::chrono::steady_clock::now();
             // std::cout << "Got vals: ";
             // for (auto val : vals) std::cout << val << ' ';
             // std::cout << std::endl;
@@ -220,12 +231,44 @@ int main(int argc, char** argv)
             table.Add(keys, vals);
             table.Clock();
 
-            if ((++i % 1000) == 0)
+            if ((++i % (node_samples.size()/10)) == 0)
             {
-                LOG(INFO) << "Worker " << info.worker_id << " used "
-                          << std::chrono::duration_cast<std::chrono::microseconds>(
-                             std::chrono::steady_clock::now() -
-                             iter_start_time).count()/1000.0 << "ms for " << i << "th iteration";
+                auto sum = std::accumulate(m_times.begin(), m_times.end(), 0);
+                auto m_mean = sum / (node_samples.size()/10);
+                
+                std::vector<long long> diff( node_samples.size()/10 );
+                std::transform(m_times.begin(), m_times.end(), diff.begin(),
+                               [m_mean](long long t) {return t - m_mean;});
+
+                auto sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0);
+                auto m_st_dev = std::sqrt(sq_sum / (node_samples.size()/10));
+
+                auto wait_sum = std::accumulate(m_wait_times.begin(), m_wait_times.end(), 0);
+                auto m_wait_mean = wait_sum / (node_samples.size()/10);
+                
+                std::vector<long long> wait_diff( node_samples.size()/10 );
+                std::transform(m_wait_times.begin(), m_wait_times.end(), wait_diff.begin(),
+                               [m_wait_mean](long long t) {return t - m_wait_mean;});
+
+                auto wait_sq_sum = std::inner_product(wait_diff.begin(), wait_diff.end(), wait_diff.begin(), 0);
+                auto m_wait_st_dev = std::sqrt(wait_sq_sum / (node_samples.size()/10));
+
+                
+                LOG(INFO) << "Worker " << info.worker_id << " for " << std::setw(8) << i << " iterations" 
+                                  << " total: " << std::setw(2) << sum << "ms"
+                                  << " mean: " << std::setw(3) << m_mean << "ms"
+                                  << " st. dev: : " << std::setw(6) << m_st_dev 
+                                  << " wait: " << std::setw(2) << wait_sum << "ms"
+                                  << " mean: " << std::setw(3) << m_wait_mean << "ms"
+                                  << " st. dev: : " << std::setw(6) << m_wait_st_dev;
+                m_times.clear();
+                m_wait_times.clear();
+
+            } else {
+                auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count();
+                auto wait_time = std::chrono::duration_cast<std::chrono::microseconds>(iter_wait_time_2 - iter_wait_time_1).count();
+                m_times.push_back(time);
+                m_wait_times.push_back(wait_time);
             } 
         }
 
