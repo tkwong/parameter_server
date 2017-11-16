@@ -21,9 +21,10 @@ typedef std::function<Sample(boost::string_ref, int)> Parse;
 DEFINE_int32(my_id, 0, "The host ID of this program");
 DEFINE_string(config_file, "", "The config file path");
 // Data loading config
-DEFINE_string(hdfs_namenode, "localhost", "The hdfs namenode hostname");
-DEFINE_int32(hdfs_namenode_port, 9000, "The hdfs namenode port");
-DEFINE_string(hdfs_master_host, "localhost", "A hostname for the hdfs assigner host");
+// DEFINE_string(hdfs_namenode, "localhost", "The hdfs namenode hostname");
+// DEFINE_int32(hdfs_namenode_port, 9000, "The hdfs namenode port");
+// DEFINE_string(hdfs_master_host, "localhost", "A hostname for the hdfs assigner host");
+DEFINE_int32(hdfs_master_node_id, 0, "The Node ID of the HDFS Assigner");
 DEFINE_int32(hdfs_master_port, 19818, "A port number for the hdfs assigner host");
 DEFINE_int32(n_loaders_per_node, 1, "The number of loaders per node");
 DEFINE_string(input, "", "The hdfs input url");
@@ -101,17 +102,38 @@ int main(int argc, char** argv)
     LOG(INFO) << "MyNode : "<< my_node->DebugString();
 
     // if it is HDFSBlockAssigner host, start the thread
-    std::thread master_thread([]
+    if(FLAGS_hdfs_master_node_id == my_node->id)
     {
-        HDFSBlockAssigner assigner(FLAGS_hdfs_namenode, FLAGS_hdfs_namenode_port, new zmq::context_t(1), FLAGS_hdfs_master_port);
-        assigner.Serve();
-    });
+      LOG(INFO) << "Starting HDFS Assigner for ["<< my_node->id << "] " << my_node->hostname << ":" << FLAGS_hdfs_master_port;
+      std::thread master_thread([]()
+      {
+          LOG(INFO) << "Using HDFS input " << FLAGS_input ;
+          // Parse from input
+          LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL(FLAGS_input);
+          std::string hdfs_namenode = URL.m_Host;
+          int hdfs_namenode_port = stoi(URL.m_Port);
+          
+          LOG(INFO) << "Using HDFS " << hdfs_namenode << ":" << hdfs_namenode_port;
+        
+          HDFSBlockAssigner assigner(hdfs_namenode, hdfs_namenode_port, new zmq::context_t(1), FLAGS_hdfs_master_port);
+          assigner.Serve();
+      });
+      master_thread.detach();
+    }
     
     // Load Data Samples
     DataStore samples;
+    std::string hdfs_master_host("localhost"); 
+    for (const auto& node : nodes) {
+      if (FLAGS_hdfs_master_node_id == node.id) {
+        LOG(INFO) << "Using HDFS Assigner from "<< node.id << " : " << node.hostname;
+        hdfs_master_host = node.hostname;
+      }
+    }
+      
     lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
         FLAGS_input, FLAGS_n_features, 
-        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), FLAGS_hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
+        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
     );
 
     DataStore node_samples(samples.begin() , samples.end() - 10000 );
