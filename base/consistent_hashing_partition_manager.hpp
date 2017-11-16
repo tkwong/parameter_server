@@ -6,15 +6,16 @@
 
 namespace csci5570 {
 
-class ConsistentHashingPartitionManager : public AbstractPartitionManager {
+template <typename Val = double>
+class ConsistentHashingPartitionManager : public AbstractPartitionManager <Val> {
     public:
+      //FIXME: cannot retrieve Keys and KVPairs from AbstractPartitionManager.
+      typedef third_party::SArray<Key> Keys;
+      typedef std::pair<third_party::SArray<Key>, third_party::SArray<Val>> KVPairs;
+
         ConsistentHashingPartitionManager(const std::vector<uint32_t>& ids) :
-            AbstractPartitionManager(ids) {}
-
-        // size_t GetNumServers() const { return server_thread_ids_.size(); }
-        //
-        // const std::vector<uint32_t>& GetServerThreadIds() const { return server_thread_ids_; }
-
+            AbstractPartitionManager<Val>(ids) {}
+            
         void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) const override
 		{
 
@@ -23,7 +24,7 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 			for (auto key : keys){
 				
 				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
-				auto node_id = server_thread_ids_.at(JumpConsistentHash(key, server_thread_ids_.size()));
+				auto node_id = this->server_thread_ids_.at(JumpConsistentHash(key, this->server_thread_ids_.size()));
 				// DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 			  
 			  	// TO Construct the result set sliced : [ (0, [1,2,3] ), (1, [4,5,6])]
@@ -51,14 +52,14 @@ class ConsistentHashingPartitionManager : public AbstractPartitionManager {
 				auto val = kvs.second[i];
 
 				// Use JumpConsistentHash to generate the position, and take the node_id to be used in sliced.
-				auto node_id = server_thread_ids_.at(ConsistentHashingPartitionManager::JumpConsistentHash(key, server_thread_ids_.size()));
+				auto node_id = this->server_thread_ids_.at(ConsistentHashingPartitionManager::JumpConsistentHash(key, this->server_thread_ids_.size()));
 				// DLOG(INFO) << "Key: "<< key << ", Node ID:" << node_id ;
 				
 			  	// TO Construct the result set sliced : [ (0, ([1,2,3],[.1,.2,.3]) ), (1, ([4,5,6], [.4,.5,.6])) ]
 				// Find if the node id exists 
 				auto it = std::find_if(sliced->begin(), sliced->end(), [&node_id](std::pair<int, KVPairs> ele) {return (ele.first == node_id);} );
 				third_party::SArray<Key> keys({key});
-				third_party::SArray<double> vals({val});
+				third_party::SArray<Val> vals({val});
 
 				if ( it != sliced->end()){					
 					it->second.first.append(keys);

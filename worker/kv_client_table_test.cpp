@@ -17,7 +17,7 @@ namespace csci5570 {
 const uint32_t kTestAppThreadId = 15;
 const uint32_t kTestModelId = 23;
 
-class FakePartitionManager : public AbstractPartitionManager {
+class FakePartitionManager : public AbstractPartitionManager <float> {
  public:
   FakePartitionManager(const std::vector<uint32_t>& server_thread_ids, int split)
       : AbstractPartitionManager(server_thread_ids), split_(split) {}

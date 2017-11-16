@@ -27,8 +27,6 @@ print "hostfile_path:%s, prog_path:%s" % (hostfile_path, prog_path)
 
 params = {
     "config_file":hostfile_path,
-    "hdfs_master_host": "proj10",
-    "hdfs_namenode": "proj10",
     "input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
     "n_features": 1000000,
     "n_workers_per_node": 1

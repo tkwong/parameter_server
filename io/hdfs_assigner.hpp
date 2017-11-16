@@ -9,6 +9,7 @@
 
 #include "hdfs/hdfs.h"
 #include "zmq.hpp"
+#include "lib/LUrlParser/LUrlParser.hpp"
 
 namespace csci5570 {
 

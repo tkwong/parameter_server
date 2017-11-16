@@ -13,14 +13,14 @@ namespace csci5570 {
  * Implments the interface of a PartitionManager which provides the model
  * partitioning scheme
  */
+template <typename Val = double>
 class AbstractPartitionManager {
 public:
   // using Keys = std::vector<Key>;
   // using KVPairs = std::pair<std::vector<Key>, std::vector<double>>;
-  using Keys = third_party::SArray<Key>;
-  using KVPairs =
-      std::pair<third_party::SArray<Key>, third_party::SArray<double>>;
-
+  typedef third_party::SArray<Key> Keys;
+  typedef std::pair<third_party::SArray<Key>, third_party::SArray<Val>> KVPairs;
+  
   explicit AbstractPartitionManager(
       const std::vector<uint32_t> &server_thread_ids)
       : server_thread_ids_(server_thread_ids) {}
