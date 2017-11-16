@@ -166,10 +166,7 @@ int main(int argc, char** argv)
 
         KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
 
-        DataStore thread_samples(node_samples.begin() + 40000 * (info.worker_id % 3), 
-                                 node_samples.begin() + 40000 * (info.worker_id % 3 + 1));
-
-        LOG(INFO) << "Worker " << info.worker_id << " got " << thread_samples.size() << " samples.";
+        LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples.";
 
         //std::cout << "Initializing keys" << std::endl;
         // Initialize all keys with 0
@@ -183,7 +180,7 @@ int main(int argc, char** argv)
         int i = 0;
         double learning_rate = 0.001;
         
-        for (Sample sample : thread_samples)
+        for (Sample sample : node_samples)
         {
             auto iter_start_time = std::chrono::steady_clock::now();
           
