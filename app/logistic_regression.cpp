@@ -162,8 +162,7 @@ int main(int argc, char** argv)
     task.SetWorkerAlloc(worker_alloc);
     task.SetTables({table_id});
     
-    int n_features = FLAGS_n_features;
-    task.SetLambda([table_id, node_samples, test_samples, n_features](const Info& info)
+    task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
         auto start_time = std::chrono::steady_clock::now();
 
@@ -182,17 +181,20 @@ int main(int argc, char** argv)
         //std::cout << "Key Initialized" << std::endl;
 
         // Train
-        int i = 0;
         std::vector<long long> m_times;
         std::vector<long long> m_wait_times;
-        double learning_rate = 0.001;
         
+        double learning_rate = FLAGS_alpha;
 
-        for (Sample sample : node_samples)
+
+        std::vector<unsigned int> indices(node_samples.size());
+        std::iota(indices.begin(), indices.end(), 0);
+        
+        for (int i = 0 ; i < FLAGS_n_iters; i++ )
+        // for (Sample sample : node_samples)
         {
             auto iter_start_time = std::chrono::steady_clock::now();
-          
-
+            
             // Pull
             std::vector<double> vals;
             
@@ -203,26 +205,34 @@ int main(int argc, char** argv)
             // for (auto val : vals) std::cout << val << ' ';
             // std::cout << std::endl;
 
-            // Predict
-            double yhat = vals.at(0);
-            for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                yhat += vals.at(it.index()) * it.value();
-            double predict = 1.0 / (1.0 + exp(-yhat));
+            std::random_shuffle(indices.begin(), indices.end());
+            
+              // Pick a sample randomly
+            for (int b = 0 ; b < FLAGS_batch_size ; b++ )
+            {
+              auto sample = node_samples[indices[ b % node_samples.size() ]];
+            
+              // Predict
+              double yhat = vals.at(0);
+              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
+                  yhat += vals.at(it.index()) * it.value();
+              double predict = 1.0 / (1.0 + exp(-yhat));
 
-            //std::cout << "Predict: " << predict << std::endl;
+              //std::cout << "Predict: " << predict << std::endl;
 
-            // Cal Error and Gradient
-            double error = (sample.label > 0 ? 1 : 0) - predict;
-            double gradient = vals.at(0);
-            for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                gradient += it.value() * error;
+              // Cal Error and Gradient
+              double error = (sample.label > 0 ? 1 : 0) - predict;
+              double gradient = vals.at(0);
+              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
+                  gradient += it.value() * error;
 
-            //std::cout << "Error: " << error << " Gradient: " << gradient << std::endl;
+              //std::cout << "Error: " << error << " Gradient: " << gradient << std::endl;
 
-            // Update
-            vals.at(0) += learning_rate * gradient;
-            for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                vals.at(it.index()) += learning_rate * gradient;
+              // Update
+              vals.at(0) += learning_rate * gradient;
+              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
+                  vals.at(it.index()) += learning_rate * gradient;
+            }
 
             // Push
             //std::cout << "Adding vals: ";
@@ -231,27 +241,27 @@ int main(int argc, char** argv)
             table.Add(keys, vals);
             table.Clock();
 
-            if ((++i % (node_samples.size()/10)) == 0)
+            if ((i % (FLAGS_n_iters/10)) == 0)
             {
                 auto sum = std::accumulate(m_times.begin(), m_times.end(), 0);
-                auto m_mean = sum / (node_samples.size()/10);
+                auto m_mean = sum / (FLAGS_n_iters/10);
                 
-                std::vector<long long> diff( node_samples.size()/10 );
+                std::vector<long long> diff( FLAGS_n_iters/10 );
                 std::transform(m_times.begin(), m_times.end(), diff.begin(),
                                [m_mean](long long t) {return t - m_mean;});
 
                 auto sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0);
-                auto m_st_dev = std::sqrt(sq_sum / (node_samples.size()/10));
+                auto m_st_dev = std::sqrt(sq_sum / (FLAGS_n_iters/10));
 
                 auto wait_sum = std::accumulate(m_wait_times.begin(), m_wait_times.end(), 0);
-                auto m_wait_mean = wait_sum / (node_samples.size()/10);
+                auto m_wait_mean = wait_sum / (FLAGS_n_iters/10);
                 
-                std::vector<long long> wait_diff( node_samples.size()/10 );
+                std::vector<long long> wait_diff( FLAGS_n_iters/10 );
                 std::transform(m_wait_times.begin(), m_wait_times.end(), wait_diff.begin(),
                                [m_wait_mean](long long t) {return t - m_wait_mean;});
 
                 auto wait_sq_sum = std::inner_product(wait_diff.begin(), wait_diff.end(), wait_diff.begin(), 0);
-                auto m_wait_st_dev = std::sqrt(wait_sq_sum / (node_samples.size()/10));
+                auto m_wait_st_dev = std::sqrt(wait_sq_sum / (FLAGS_n_iters/10));
 
                 
                 LOG(INFO) << "Worker " << info.worker_id << " for " << std::setw(8) << i << " iterations" 
