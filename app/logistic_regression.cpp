@@ -13,6 +13,7 @@
 #include "lib/abstract_data_loader.hpp"
 #include "driver/engine.cpp"
 #include <fstream>
+#include "lib/benchmark.hpp"
 
 
 
@@ -164,8 +165,10 @@ int main(int argc, char** argv)
     
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
-        auto start_time = std::chrono::steady_clock::now();
-
+#ifdef BENCHMARK
+        auto benchmark = Benchmark<>::measure([&](const Info& info) {
+#endif
+        
         LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
 
         KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
@@ -305,9 +308,9 @@ int main(int argc, char** argv)
         LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size() 
                   << " " << float(correct)/test_samples.size()*100 << " percent"; 
 
-        LOG(INFO) << "Worker " << info.worker_id << " used time: " 
-                  << std::chrono::duration_cast<std::chrono::microseconds>(
-                  std::chrono::steady_clock::now() - start_time).count()/1000.0;
+#ifdef BENCHMARK
+        }, info); LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark << "ms";
+#endif
     });
 
     engine->Run(task);
