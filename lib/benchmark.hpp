@@ -36,7 +36,7 @@ public:
 
         for (auto i = 0; i != n; i++)
         {
-            auto pair = measure(std::forward<Fun>(fun),
+            auto pair = measure_with_result(std::forward<Fun>(fun),
                                           std::forward<Args>(args)...);
             m_times.push_back(pair.first);
             results.push_back(pair.second);
