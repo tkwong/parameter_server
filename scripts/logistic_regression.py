@@ -31,7 +31,7 @@ params = {
     #"input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
     #"n_features": 1000000,
     "input": "hdfs://proj10:9000/datasets/classification/a9/",
-    "n_features": 124,
+    "n_features": 123,
     "n_workers_per_node": 1
 }
 
