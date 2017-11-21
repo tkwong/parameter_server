@@ -175,8 +175,6 @@ int main(int argc, char** argv)
 
         LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples.";
 
-        std::vector<Key> keys;
-        for (int i=0; i<FLAGS_n_features+1; i++) keys.push_back(i);
         // LOG(INFO) << "Initializing keys ...  [" << info.worker_id  << "]";
         // // Initialize all keys with 0
         // std::vector<double> init_vals(FLAGS_n_features+1);
@@ -185,7 +183,7 @@ int main(int argc, char** argv)
 
         // Train
         std::vector<long long> m_times;
-        std::vector<long long> m_wait_times;
+        std::vector<long long> m_batch_times;
         
         double learning_rate = FLAGS_alpha;
 
@@ -194,70 +192,89 @@ int main(int argc, char** argv)
         
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
-        // for (Sample sample : node_samples)
         {
             auto iter_start_time = std::chrono::steady_clock::now();
-            
-            // Pull
-            std::vector<double> vals;
-            
-            auto iter_wait_time_1 = std::chrono::steady_clock::now();
-            table.Get(keys, &vals);
-            auto iter_wait_time_2 = std::chrono::steady_clock::now();
-            // std::cout << "Got vals: ";
-            // for (auto val : vals) std::cout << val << ' ';
-            // std::cout << std::endl;
 
+            // Prepare Sample indices
             std::random_shuffle(indices.begin(), indices.end());
             
-              // Pick a sample randomly
+            // LOG(INFO) << "Start batch "<< FLAGS_batch_size << "...  [" << info.worker_id  << "]";
+            // Pick a sample randomly from sample indices 
+            auto iter_batch_time_1 = std::chrono::steady_clock::now();
             for (int b = 0 ; b < FLAGS_batch_size ; b++ )
             {
+  
               auto sample = node_samples[indices[ b % node_samples.size() ]];
-            
+
+              // Prepare the keys from sample
+              std::vector<Key> keys;
+              keys.push_back(0);
+              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it){
+                // DLOG(INFO) << "it.index(): " << it.index() ;
+                keys.push_back(it.index()) ;
+              }
+                
+
+              // Get Vals
+              std::vector<double> vals;
+
+              table.Get(keys, &vals);
+              
+              // DLOG(INFO) << "vals.size(): " << vals.size();
+              CHECK_EQ(keys.size(), vals.size());
+              
               // Predict
               double yhat = vals.at(0);
-              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                  yhat += vals.at(it.index()) * it.value();
-              double predict = 1.0 / (1.0 + exp(-yhat));
+              // starting from 1, as the position of key = position of val
+              for (int i = 1 ; i < keys.size() ; i ++ ) { 
+                  yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
+              }
+              
+              // for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it){
+              //     DLOG(INFO) << "it.index(): " << it.index();
+              //     DLOG(INFO) << "it.value(): " << it.value();
+              //     DLOG(INFO) << "yhat: " << yhat;
+              //     yhat += vals.at(it.index()) * it.value();
+              // }
+                  
 
+              double predict = 1.0 / (1.0 + exp(-yhat));
               //std::cout << "Predict: " << predict << std::endl;
 
               // Cal Error and Gradient
               double error = (sample.label > 0 ? 1 : 0) - predict;
               double gradient = vals.at(0);
+              
               for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
                   gradient += it.value() * error;
-
               //std::cout << "Error: " << error << " Gradient: " << gradient << std::endl;
-
               // Update
               vals.at(0) += learning_rate * gradient;
-              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                  vals.at(it.index()) += learning_rate * gradient;
+              for (int i = 1 ; i < keys.size(); i++ )
+                  vals.at(i) += learning_rate * gradient;          
+              // Push              
+              table.Add(keys, vals);
+              
+
             }
+            
+            // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
 
+            auto iter_batch_time_2 = std::chrono::steady_clock::now();
+            m_batch_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(iter_batch_time_2 - iter_batch_time_1).count());
 
-            // Push
-            //std::cout << "Adding vals: ";
-            //for (auto val : vals) std::cout << val << ' ';
-            //std::cout << std::endl;
-            table.Add(keys, vals);
+            
+            
             table.Clock();
             
-            
-            auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count();
-            auto wait_time = std::chrono::duration_cast<std::chrono::microseconds>(iter_wait_time_2 - iter_wait_time_1).count();
-            m_times.push_back(time);
-            m_wait_times.push_back(wait_time);
+            m_times.push_back( std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count() );
                         
             if ((i % (FLAGS_n_iters/10)) == 0)
             {
 
-                
                 auto sum = std::accumulate(m_times.begin(), m_times.end(), 0);
                 auto m_mean = sum / (FLAGS_n_iters/10.);
-                
+
                 std::vector<long long> diff( FLAGS_n_iters/10. );
                 std::transform(m_times.begin(), m_times.end(), diff.begin(),
                                [m_mean](long long t) {return t - m_mean;});
@@ -265,34 +282,33 @@ int main(int argc, char** argv)
                 auto sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0);
                 auto m_st_dev = std::sqrt(sq_sum / (FLAGS_n_iters/10.));
 
-                auto wait_sum = std::accumulate(m_wait_times.begin(), m_wait_times.end(), 0);
-                auto m_wait_mean = wait_sum / (FLAGS_n_iters/10.);
-                
-                std::vector<long long> wait_diff( FLAGS_n_iters/10. );
-                std::transform(m_wait_times.begin(), m_wait_times.end(), wait_diff.begin(),
-                               [m_wait_mean](long long t) {return t - m_wait_mean;});
+                auto batch_sum = std::accumulate(m_batch_times.begin(), m_batch_times.end(), 0);
+                auto m_batch_mean = batch_sum / (FLAGS_n_iters/10.);
 
-                auto wait_sq_sum = std::inner_product(wait_diff.begin(), wait_diff.end(), wait_diff.begin(), 0);
-                auto m_wait_st_dev = std::sqrt(wait_sq_sum / (FLAGS_n_iters/10.));
+                std::vector<long long> batch_diff( FLAGS_n_iters/10. );
+                std::transform(m_batch_times.begin(), m_batch_times.end(), batch_diff.begin(),
+                               [m_batch_mean](long long t) {return t - m_batch_mean;});
 
-                
-                LOG(INFO) << "Worker " << info.worker_id << " for " << std::setw(8) << i << " iterations" 
+                auto batch_sq_sum = std::inner_product(batch_diff.begin(), batch_diff.end(), batch_diff.begin(), 0);
+                auto m_batch_st_dev = std::sqrt(batch_sq_sum / (FLAGS_n_iters/10.));
+
+
+                LOG(INFO) << "Worker " << info.worker_id << " for " << std::setw(8) << i << " iterations"
                                   << " total: " << std::setw(2) << sum << "ms"
                                   << " mean: " << std::setw(3) << m_mean << "ms"
-                                  << " st. dev: : " << std::setw(6) << m_st_dev 
-                                  << " wait: " << std::setw(2) << wait_sum << "ms"
-                                  << " mean: " << std::setw(3) << m_wait_mean << "ms"
-                                  << " st. dev: : " << std::setw(6) << m_wait_st_dev;
+                                  << " st. dev: : " << std::setw(6) << m_st_dev
+                                  << " batch: " << std::setw(2) << batch_sum << "ms"
+                                  << " mean: " << std::setw(3) << m_batch_mean << "ms"
+                                  << " st. dev: : " << std::setw(6) << m_batch_st_dev;
                 m_times.clear();
-                m_wait_times.clear();
+                m_batch_times.clear();
 
             }
         }
         LOG(INFO) << "Finished iteration...  [" << info.worker_id  << "]";
 
         // Test
-        std::vector<double> vals;
-        table.Get(keys, &vals);
+
 
         //std::cout << "Printing out first 10 coeff:" << std::endl;
         //for (int i=0; i<10; i++) std::cout << vals.at(i) << ' ';
@@ -301,9 +317,18 @@ int main(int argc, char** argv)
         int correct = 0;
         for (Sample sample : test_samples)
         {
-            double yhat = vals.at(0);
+            std::vector<double> vals;
+            // Prepare the keys from sample
+            std::vector<Key> keys;
             for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                yhat += vals.at(it.index()) * it.value();
+              keys.push_back(it.index()) ;
+
+            table.Get(keys, &vals);
+            
+            double yhat = vals.at(0);
+            for (int i = 1 ; i < keys.size() ; i ++ ) { 
+                yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
+            }
             double estimate = 1.0 / (1.0 + exp(-yhat));
 
             int est_class = (estimate > 0.5 ? 1 : 0);
