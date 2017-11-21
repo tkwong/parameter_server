@@ -175,13 +175,13 @@ int main(int argc, char** argv)
 
         LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples.";
 
-        //std::cout << "Initializing keys" << std::endl;
+        LOG(INFO) << "Initializing keys ...  [" << info.worker_id  << "]";
         // Initialize all keys with 0
         std::vector<Key> keys;
         for (int i=0; i<FLAGS_n_features+1; i++) keys.push_back(i); 
         std::vector<double> init_vals(FLAGS_n_features+1);          
         table.Add(keys, init_vals);
-        //std::cout << "Key Initialized" << std::endl;
+        LOG(INFO) << "Key Initialized  [" << info.worker_id  << "]";
 
         // Train
         std::vector<long long> m_times;
@@ -189,10 +189,10 @@ int main(int argc, char** argv)
         
         double learning_rate = FLAGS_alpha;
 
-
         std::vector<unsigned int> indices(node_samples.size());
         std::iota(indices.begin(), indices.end(), 0);
         
+        LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         // for (Sample sample : node_samples)
         {
@@ -237,34 +237,43 @@ int main(int argc, char** argv)
                   vals.at(it.index()) += learning_rate * gradient;
             }
 
+
             // Push
             //std::cout << "Adding vals: ";
             //for (auto val : vals) std::cout << val << ' ';
             //std::cout << std::endl;
             table.Add(keys, vals);
             table.Clock();
-
+            
+            
+            auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count();
+            auto wait_time = std::chrono::duration_cast<std::chrono::microseconds>(iter_wait_time_2 - iter_wait_time_1).count();
+            m_times.push_back(time);
+            m_wait_times.push_back(wait_time);
+                        
             if ((i % (FLAGS_n_iters/10)) == 0)
             {
-                auto sum = std::accumulate(m_times.begin(), m_times.end(), 0);
-                auto m_mean = sum / (FLAGS_n_iters/10);
+
                 
-                std::vector<long long> diff( FLAGS_n_iters/10 );
+                auto sum = std::accumulate(m_times.begin(), m_times.end(), 0);
+                auto m_mean = sum / (FLAGS_n_iters/10.);
+                
+                std::vector<long long> diff( FLAGS_n_iters/10. );
                 std::transform(m_times.begin(), m_times.end(), diff.begin(),
                                [m_mean](long long t) {return t - m_mean;});
 
                 auto sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0);
-                auto m_st_dev = std::sqrt(sq_sum / (FLAGS_n_iters/10));
+                auto m_st_dev = std::sqrt(sq_sum / (FLAGS_n_iters/10.));
 
                 auto wait_sum = std::accumulate(m_wait_times.begin(), m_wait_times.end(), 0);
-                auto m_wait_mean = wait_sum / (FLAGS_n_iters/10);
+                auto m_wait_mean = wait_sum / (FLAGS_n_iters/10.);
                 
-                std::vector<long long> wait_diff( FLAGS_n_iters/10 );
+                std::vector<long long> wait_diff( FLAGS_n_iters/10. );
                 std::transform(m_wait_times.begin(), m_wait_times.end(), wait_diff.begin(),
                                [m_wait_mean](long long t) {return t - m_wait_mean;});
 
                 auto wait_sq_sum = std::inner_product(wait_diff.begin(), wait_diff.end(), wait_diff.begin(), 0);
-                auto m_wait_st_dev = std::sqrt(wait_sq_sum / (FLAGS_n_iters/10));
+                auto m_wait_st_dev = std::sqrt(wait_sq_sum / (FLAGS_n_iters/10.));
 
                 
                 LOG(INFO) << "Worker " << info.worker_id << " for " << std::setw(8) << i << " iterations" 
@@ -277,13 +286,9 @@ int main(int argc, char** argv)
                 m_times.clear();
                 m_wait_times.clear();
 
-            } else {
-                auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count();
-                auto wait_time = std::chrono::duration_cast<std::chrono::microseconds>(iter_wait_time_2 - iter_wait_time_1).count();
-                m_times.push_back(time);
-                m_wait_times.push_back(wait_time);
-            } 
+            }
         }
+        LOG(INFO) << "Finished iteration...  [" << info.worker_id  << "]";
 
         // Test
         std::vector<double> vals;
