@@ -344,7 +344,7 @@ int main(int argc, char** argv)
     });
 
     engine->Run(task);
-    // engine->Barrier();
+    engine->Barrier();
     engine->StopEverything();
    
     return 0;
