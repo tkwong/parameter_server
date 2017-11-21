@@ -175,13 +175,13 @@ int main(int argc, char** argv)
 
         LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples.";
 
-        LOG(INFO) << "Initializing keys ...  [" << info.worker_id  << "]";
-        // Initialize all keys with 0
         std::vector<Key> keys;
-        for (int i=0; i<FLAGS_n_features+1; i++) keys.push_back(i); 
-        std::vector<double> init_vals(FLAGS_n_features+1);          
-        table.Add(keys, init_vals);
-        LOG(INFO) << "Key Initialized  [" << info.worker_id  << "]";
+        for (int i=0; i<FLAGS_n_features+1; i++) keys.push_back(i);
+        // LOG(INFO) << "Initializing keys ...  [" << info.worker_id  << "]";
+        // // Initialize all keys with 0
+        // std::vector<double> init_vals(FLAGS_n_features+1);
+        // table.Add(keys, init_vals);
+        // LOG(INFO) << "Key Initialized  [" << info.worker_id  << "]";
 
         // Train
         std::vector<long long> m_times;

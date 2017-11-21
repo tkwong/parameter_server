@@ -34,7 +34,8 @@ class MapStorage : public AbstractStorage {
       if (it != storage_.end())
         reply_vals[i] = it->second;
       else
-        break; //If a key does not exist, return the values founded so far.
+        reply_vals[i] = 0;
+        // break; //If a key does not exist, return the values founded so far.
     }
 
     //for (int i=0; i<typed_keys.size(); i++)
