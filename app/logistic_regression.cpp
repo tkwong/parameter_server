@@ -178,8 +178,8 @@ int main(int argc, char** argv)
         //std::cout << "Initializing keys" << std::endl;
         // Initialize all keys with 0
         std::vector<Key> keys;
-        for (int i=0; i<FLAGS_n_features; i++) keys.push_back(i); 
-        std::vector<double> init_vals(FLAGS_n_features);          
+        for (int i=0; i<FLAGS_n_features+1; i++) keys.push_back(i); 
+        std::vector<double> init_vals(FLAGS_n_features+1);          
         table.Add(keys, init_vals);
         //std::cout << "Key Initialized" << std::endl;
 
