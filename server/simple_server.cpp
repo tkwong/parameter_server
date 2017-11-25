@@ -43,7 +43,7 @@ class SimpleServer {
         ThreadsafeQueue<Message>* getReplyQueue() {return &reply_q;}
         
     protected:
-        AbstractPartitionManager<>* pm;
+        AbstractPartitionManager* pm;
         std::map<uint32_t, ServerThread*> threads;
         ThreadsafeQueue<Message> reply_q;
 };

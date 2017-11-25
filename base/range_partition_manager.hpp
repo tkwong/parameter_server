@@ -11,16 +11,11 @@
 
 namespace csci5570 {
 
-template <typename Val = double>
-class RangePartitionManager : public AbstractPartitionManager <Val> {
+class RangePartitionManager : public AbstractPartitionManager {
     public:
-        //FIXME: cannot retrieve Keys and KVPairs from AbstractPartitionManager.
-        typedef third_party::SArray<Key> Keys;
-        typedef std::pair<third_party::SArray<Key>, third_party::SArray<Val>> KVPairs;
-
         RangePartitionManager(const std::vector<uint32_t>& server_thread_ids,
             const std::vector<third_party::Range>& ranges) :
-            AbstractPartitionManager<Val>(server_thread_ids),  ranges_(ranges) {}
+            AbstractPartitionManager(server_thread_ids),  ranges_(ranges) {}
         void Slice(const Keys& keys, std::vector<std::pair<int, Keys>>* sliced) const override
         {
             sliced->clear();
@@ -35,7 +30,7 @@ class RangePartitionManager : public AbstractPartitionManager <Val> {
                     {
                         server = range;
                         sliced->push_back(std::make_pair(
-                            this->server_thread_ids_[server], Keys({*k_it})));
+                            server_thread_ids_[server], Keys({*k_it})));
                     }
                     else
                     {
@@ -64,7 +59,7 @@ class RangePartitionManager : public AbstractPartitionManager <Val> {
                     {
                         server = range;
                         sliced->push_back(std::make_pair(
-                            this->server_thread_ids_[server],
+                            server_thread_ids_[server],
                             KVPairs({kvs.first[i]},{kvs.second[i]})));
                     }
                     else

@@ -33,23 +33,23 @@ TEST_F(TestConsistentHashingPartitionManager, Construct) {
 
 TEST_F(TestConsistentHashingPartitionManager, GetNumServers) {
 	std::vector<uint32_t> vec ({0,1,2});
-    ConsistentHashingPartitionManager<> pm(vec);
+    ConsistentHashingPartitionManager pm(vec);
  
     EXPECT_EQ(pm.GetNumServers(), vec.size());
 }
 
 TEST_F(TestConsistentHashingPartitionManager, GetServerThreadIds) {
 	std::vector<uint32_t> vec ({0,1,2});
-	ConsistentHashingPartitionManager<> pm(vec);
+	ConsistentHashingPartitionManager pm(vec);
 	
     EXPECT_EQ(pm.GetServerThreadIds(), vec);
 }
 
 TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
 	
-    using Keys = AbstractPartitionManager<>::Keys;
+    using Keys = AbstractPartitionManager::Keys;
 	
-    ConsistentHashingPartitionManager<> pm({0, 1, 2});
+    ConsistentHashingPartitionManager pm({0, 1, 2});
     third_party::SArray<Key> in_keys({2, 8, 9});
 	std::vector<std::pair<int, Keys>> sliced;
 
@@ -107,10 +107,10 @@ TEST_F(TestConsistentHashingPartitionManager, SliceKeys) {
 
 
 TEST_F(TestConsistentHashingPartitionManager, SliceKVs) {
-  ConsistentHashingPartitionManager<> pm({0, 1, 2});
+  ConsistentHashingPartitionManager pm({0, 1, 2});
   third_party::SArray<Key> keys({2, 5, 9});
   third_party::SArray<double> vals({.2, .5, .9});
-  std::vector<std::pair<int, AbstractPartitionManager<>::KVPairs>> sliced;
+  std::vector<std::pair<int, AbstractPartitionManager::KVPairs>> sliced;
   pm.Slice(std::make_pair(keys, vals), &sliced);
 
   // Expected Results : 
