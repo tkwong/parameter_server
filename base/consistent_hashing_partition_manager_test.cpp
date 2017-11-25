@@ -28,7 +28,7 @@ class TestConsistentHashingPartitionManager : public testing::Test {
 
 TEST_F(TestConsistentHashingPartitionManager, Construct) {
     std::vector<uint32_t> vec({0,1});
-    ConsistentHashingPartitionManager<> pm(vec);
+    ConsistentHashingPartitionManager pm(vec);
 }
 
 TEST_F(TestConsistentHashingPartitionManager, GetNumServers) {

@@ -91,7 +91,7 @@ class Engine {
    * @return                    the created table(model) id
    */
   template <typename Val>
-  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager<Val>> partition_manager, 
+  uint32_t CreateTable(std::unique_ptr<AbstractPartitionManager> partition_manager, 
                        ModelType model_type, StorageType storage_type, int model_staleness = 0) 
   {
     RegisterPartitionManager(model_count_, std::move(partition_manager));
