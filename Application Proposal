@@ -5,5 +5,5 @@ group 6
 1155105264 Wu, Jianqiu  
 
 Application Names and Brief introduction
-The applications we are going to implement are Support Vector Machine and Matrix Factorization. Both will be implemented using Stochastic Gradient Descend. We'll optimize the parameters using. Recent algorithms for finding the SVM classifier include sub-gradient descent and coordinate descent. Both techniques have proven to offer significant advantages over the traditional approach when dealing with large, sparse datasets
+The applications we are going to implement are Support Vector Machine and Matrix Factorization. Both will be implemented using Stochastic Gradient Descend. We'll optimize the parameters using. Recent algorithms for finding the SVM classifier include sub-gradient descent and coordinate descent. Both techniques have proven to offer significant advantages over the traditional approach when dealing with large, sparse datasets.
 
