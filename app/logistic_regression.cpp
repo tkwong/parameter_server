@@ -204,6 +204,9 @@ int main(int argc, char** argv)
             // LOG(INFO) << "Start batch "<< FLAGS_batch_size << "...  [" << info.worker_id  << "]";
             // Pick a sample randomly from sample indices
             auto iter_batch_time_1 = std::chrono::steady_clock::now();
+            
+            
+            //Get key for this batch size (for example: batch = 10)
             for (int b = 0 ; b < FLAGS_batch_size ; b++ )
             {
 
@@ -220,9 +223,12 @@ int main(int argc, char** argv)
 
               // Get Vals
               std::vector<double> vals;
-
+              auto iter_wait_time_1 = std::chrono::steady_clock::now();
               table.Get(keys, &vals);
-
+              auto iter_wait_time_2 = std::chrono::steady_clock::now();
+              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << int(delay) << "ms";
+              
+              
               // DLOG(INFO) << "vals.size(): " << vals.size();
               CHECK_EQ(keys.size(), vals.size());
 
@@ -260,7 +266,7 @@ int main(int argc, char** argv)
                 double r = (double)rand() / RAND_MAX;
                 if (r < FLAGS_with_injected_straggler) {
                   double delay = FLAGS_with_injected_straggler_delay;
-                  LOG(INFO) << "[" << info.worker_id  << "] injecting straggler for " << int(delay) << " ms ... ";
+                  LOG(INFO) << "[" << info.worker_id  << "] injecting straggler for " << int(delay) << " ms ... [" << r << "]";
                   std::this_thread::sleep_for(std::chrono::milliseconds(int(delay)));
                 }
               }
@@ -273,13 +279,11 @@ int main(int argc, char** argv)
             // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
 
             auto iter_batch_time_2 = std::chrono::steady_clock::now();
-            m_batch_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(iter_batch_time_2 - iter_batch_time_1).count());
-
-
+            m_batch_times.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(iter_batch_time_2 - iter_batch_time_1).count());
 
             table.Clock();
 
-            m_times.push_back( std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count() );
+            m_times.push_back( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - iter_start_time).count() );
 
             if ((i % (FLAGS_n_iters/10)) == 0)
             {
