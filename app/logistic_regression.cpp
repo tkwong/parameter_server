@@ -225,8 +225,7 @@ int main(int argc, char** argv)
               std::vector<double> vals;
               auto iter_wait_time_1 = std::chrono::steady_clock::now();
               table.Get(keys, &vals);
-              auto iter_wait_time_2 = std::chrono::steady_clock::now();
-              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << int(delay) << "ms";
+              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - iter_wait_time_1).count() << "ms";
               
               
               // DLOG(INFO) << "vals.size(): " << vals.size();
