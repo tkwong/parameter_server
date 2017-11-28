@@ -41,6 +41,9 @@ DEFINE_int32(n_iters, 10, "The number of iterations");
 DEFINE_int32(batch_size, 100, "Batch size");
 DEFINE_double(alpha, 0.0001, "learning rate");
 
+DEFINE_double(with_injected_straggler, 0.0, "injected straggler with its probability");
+DEFINE_double(with_injected_straggler_delay, 100, "injected straggler delay in ms");
+
 // DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
 DEFINE_validator(input, [](const char* flagname, const std::string& value){ return !value.empty();});
@@ -54,11 +57,11 @@ int main(int argc, char** argv)
     google::InitGoogleLogging(argv[0]);
     FLAGS_stderrthreshold = 0;
     FLAGS_colorlogtostderr = true;
-    
-        
+
+
     // Parse config_file
     std::vector<Node> nodes;
-    
+
     if(FLAGS_config_file.empty()){
       Node node;
       node.id = 0;
@@ -70,7 +73,7 @@ int main(int argc, char** argv)
       // std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354},
       //                         {2, "localhost", 12355}, {3, "localhost", 12356},
       //                         {4, "localhost", 12357}};
-    
+
       std::ifstream input_file(FLAGS_config_file.c_str());
       CHECK(input_file.is_open()) << "Error opening file: " << FLAGS_config_file;
       std::string line;
@@ -82,13 +85,13 @@ int main(int argc, char** argv)
         CHECK_NE(host_pos, std::string::npos);
         std::string hostname = line.substr(id_pos+1, host_pos - id_pos - 1);
         std::string port = line.substr(host_pos+1, line.size() - host_pos - 1);
-      
+
         try {
           Node node;
           node.id = std::stoi(id);
           node.hostname = std::move(hostname);
           node.port = std::stoi(port);
-          LOG(INFO) << "Loaded Node from config: " << node.DebugString() ; 
+          LOG(INFO) << "Loaded Node from config: " << node.DebugString() ;
           nodes.push_back(std::move(node));
         }
         catch(const std::invalid_argument& ia) {
@@ -97,14 +100,14 @@ int main(int argc, char** argv)
       }
       LOG(INFO) << "Loaded Node from config file";
         }
-    // 
+    //
     const Node* my_node;
     for (const auto& node : nodes) {
       if (FLAGS_my_id == node.id) {
         my_node = &node;
       }
     }
-    
+
     LOG(INFO) << "MyNode : "<< my_node->DebugString();
 
     // if it is HDFSBlockAssigner host, start the thread
@@ -118,18 +121,18 @@ int main(int argc, char** argv)
           LUrlParser::clParseURL URL = LUrlParser::clParseURL::ParseURL(FLAGS_input);
           std::string hdfs_namenode = URL.m_Host;
           int hdfs_namenode_port = stoi(URL.m_Port);
-          
+
           LOG(INFO) << "Using HDFS " << hdfs_namenode << ":" << hdfs_namenode_port;
-        
+
           HDFSBlockAssigner assigner(hdfs_namenode, hdfs_namenode_port, new zmq::context_t(1), FLAGS_hdfs_master_port);
           assigner.Serve();
       });
       master_thread.detach();
     }
-    
+
     // Load Data Samples
     DataStore samples;
-    std::string hdfs_master_host(""); 
+    std::string hdfs_master_host("");
     for (const auto& node : nodes) {
       if (FLAGS_hdfs_master_node_id == node.id) {
         LOG(INFO) << "Using HDFS Assigner from "<< node.id << " : " << node.hostname;
@@ -137,15 +140,15 @@ int main(int argc, char** argv)
       }
     }
     CHECK(!hdfs_master_host.empty()) << "No HDFS Assigner Host defined";
-      
+
     lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
-        FLAGS_input, FLAGS_n_features, 
+        FLAGS_input, FLAGS_n_features,
         lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
     );
 
     DataStore node_samples(samples.begin() , samples.end() - 10000 );
     DataStore test_samples(samples.end() - 10000, samples.end());
-        
+
     LOG(INFO) << "Got " << node_samples.size() << " samples";
 
     Engine* engine = new Engine(*my_node, nodes);
@@ -157,18 +160,18 @@ int main(int argc, char** argv)
     MLTask task;
     std::vector<WorkerAlloc> worker_alloc;
     for (auto& node : nodes) {
-      worker_alloc.push_back({node.id, static_cast<uint32_t>(FLAGS_n_workers_per_node)}); 
+      worker_alloc.push_back({node.id, static_cast<uint32_t>(FLAGS_n_workers_per_node)});
     }
     // task.SetWorkerAlloc({{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}});
     task.SetWorkerAlloc(worker_alloc);
     task.SetTables({table_id});
-    
+
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
 #ifdef BENCHMARK
         auto benchmark = Benchmark<>::measure([&](const Info& info) {
 #endif
-        
+
         LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
 
         KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
@@ -184,12 +187,12 @@ int main(int argc, char** argv)
         // Train
         std::vector<long long> m_times;
         std::vector<long long> m_batch_times;
-        
+
         double learning_rate = FLAGS_alpha;
 
         std::vector<unsigned int> indices(node_samples.size());
         std::iota(indices.begin(), indices.end(), 0);
-        
+
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         {
@@ -197,13 +200,13 @@ int main(int argc, char** argv)
 
             // Prepare Sample indices
             std::random_shuffle(indices.begin(), indices.end());
-            
+
             // LOG(INFO) << "Start batch "<< FLAGS_batch_size << "...  [" << info.worker_id  << "]";
-            // Pick a sample randomly from sample indices 
+            // Pick a sample randomly from sample indices
             auto iter_batch_time_1 = std::chrono::steady_clock::now();
             for (int b = 0 ; b < FLAGS_batch_size ; b++ )
             {
-  
+
               auto sample = node_samples[indices[ b % node_samples.size() ]];
 
               // Prepare the keys from sample
@@ -213,30 +216,30 @@ int main(int argc, char** argv)
                 // DLOG(INFO) << "it.index(): " << it.index() ;
                 keys.push_back(it.index()) ;
               }
-                
+
 
               // Get Vals
               std::vector<double> vals;
 
               table.Get(keys, &vals);
-              
+
               // DLOG(INFO) << "vals.size(): " << vals.size();
               CHECK_EQ(keys.size(), vals.size());
-              
+
               // Predict
               double yhat = vals.at(0);
               // starting from 1, as the position of key = position of val
-              for (int i = 1 ; i < keys.size() ; i ++ ) { 
+              for (int i = 1 ; i < keys.size() ; i ++ ) {
                   yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
               }
-              
+
               // for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it){
               //     DLOG(INFO) << "it.index(): " << it.index();
               //     DLOG(INFO) << "it.value(): " << it.value();
               //     DLOG(INFO) << "yhat: " << yhat;
               //     yhat += vals.at(it.index()) * it.value();
               // }
-                  
+
 
               double predict = 1.0 / (1.0 + exp(-yhat));
               //std::cout << "Predict: " << predict << std::endl;
@@ -244,31 +247,40 @@ int main(int argc, char** argv)
               // Cal Error and Gradient
               double error = (sample.label > 0 ? 1 : 0) - predict;
               double gradient = vals.at(0);
-              
+
               for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
                   gradient += it.value() * error;
               //std::cout << "Error: " << error << " Gradient: " << gradient << std::endl;
               // Update
               vals.at(0) += learning_rate * gradient;
               for (int i = 1 ; i < keys.size(); i++ )
-                  vals.at(i) += learning_rate * gradient;          
-              // Push              
+                  vals.at(i) += learning_rate * gradient;
+
+              if (FLAGS_with_injected_straggler > 0.0 ) {
+                double r = (double)rand() / RAND_MAX;
+                if (r < FLAGS_with_injected_straggler) {
+                  double delay = FLAGS_with_injected_straggler_delay;
+                  LOG(INFO) << "[" << info.worker_id  << "] injecting straggler for " << int(delay) << " ms ... ";
+                  std::this_thread::sleep_for(std::chrono::milliseconds(int(delay)));
+                }
+              }
+              // Push
               table.Add(keys, vals);
-              
+
 
             }
-            
+
             // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
 
             auto iter_batch_time_2 = std::chrono::steady_clock::now();
             m_batch_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(iter_batch_time_2 - iter_batch_time_1).count());
 
-            
-            
+
+
             table.Clock();
-            
+
             m_times.push_back( std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - iter_start_time).count() );
-                        
+
             if ((i % (FLAGS_n_iters/10)) == 0)
             {
 
@@ -305,6 +317,8 @@ int main(int argc, char** argv)
 
             }
         }
+
+
         LOG(INFO) << "Finished iteration...  [" << info.worker_id  << "]";
 
         // Test
@@ -324,9 +338,9 @@ int main(int argc, char** argv)
               keys.push_back(it.index()) ;
 
             table.Get(keys, &vals);
-            
+
             double yhat = vals.at(0);
-            for (int i = 1 ; i < keys.size() ; i ++ ) { 
+            for (int i = 1 ; i < keys.size() ; i ++ ) {
                 yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
             }
             double estimate = 1.0 / (1.0 + exp(-yhat));
@@ -335,8 +349,8 @@ int main(int argc, char** argv)
             int answer = (sample.label > 0 ? 1 : 0);
             if (est_class == answer) correct++;
         }
-        LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size() 
-                  << " " << float(correct)/test_samples.size()*100 << " percent"; 
+        LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size()
+                  << " " << float(correct)/test_samples.size()*100 << " percent";
 
 #ifdef BENCHMARK
         }, info); LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark << "ms";
@@ -346,6 +360,6 @@ int main(int argc, char** argv)
     engine->Run(task);
     engine->Barrier();
     engine->StopEverything();
-   
+
     return 0;
 }
