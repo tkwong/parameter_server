@@ -143,7 +143,7 @@ int main(int argc, char** argv)
 
     lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
         FLAGS_input, FLAGS_n_features,
-        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
+        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, my_node->id, nodes.size(), hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
     );
 
     DataStore node_samples(samples.begin() , samples.end() - 10000 );
@@ -225,9 +225,10 @@ int main(int argc, char** argv)
               std::vector<double> vals;
               auto iter_wait_time_1 = std::chrono::steady_clock::now();
               table.Get(keys, &vals);
-              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - iter_wait_time_1).count() << "ms";
+              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_wait_time_1).count() << "ms";
               
               
+              auto iter_process_time = std::chrono::steady_clock::now();
               // DLOG(INFO) << "vals.size(): " << vals.size();
               CHECK_EQ(keys.size(), vals.size());
 
@@ -271,18 +272,17 @@ int main(int argc, char** argv)
               }
               // Push
               table.Add(keys, vals);
-
-
+              LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_process_time).count() << "ms";
             }
 
             // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
 
             auto iter_batch_time_2 = std::chrono::steady_clock::now();
-            m_batch_times.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(iter_batch_time_2 - iter_batch_time_1).count());
+            m_batch_times.push_back(std::chrono::duration<double, std::milli>(iter_batch_time_2 - iter_batch_time_1).count());
 
             table.Clock();
 
-            m_times.push_back( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - iter_start_time).count() );
+            m_times.push_back( std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_start_time).count() );
 
             if ((i % (FLAGS_n_iters/10)) == 0)
             {
