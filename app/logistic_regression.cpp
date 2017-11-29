@@ -175,6 +175,14 @@ int main(int argc, char** argv)
         LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
 
         KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
+        KVClientTable<double> timeTable = info.CreateKVClientTable<double>(info.timeTable_id);
+        KVClientTable<int> workloadTable = info.CreateKVClientTable<int>(info.workloadTable_id);
+
+        std::vector<Key> id_key({info.worker_id});
+        timeTable.Add(id_key, {100.1});
+        std::vector<int> workload;
+        workloadTable.Get(id_key, &workload);
+        LOG(INFO) << "Workload for " << info.worker_id << " is " << workload[0];
 
         LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples.";
 

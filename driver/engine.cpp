@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "base/abstract_partition_manager.hpp"
+#include "base/range_partition_manager.hpp"
 #include "base/node.hpp"
 #include "comm/mailbox.hpp"
 #include "comm/sender.hpp"
@@ -172,7 +173,7 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
         // auto model_ptr = server_ptr->GetModel(table_id);
         // if (!model_ptr) continue;
 
-        LOG(INFO) << "Sending Reset Message to server_id: " << server_id;
+        LOG(INFO) << "Sending Reset Message to server_id: " << server_id << " for table_id: " << table_id;
         Message reset_msg;
         reset_msg.meta.sender = worker_thread_.get()->GetId();
         reset_msg.meta.recver = server_id;
@@ -199,6 +200,23 @@ void Engine::Run(const MLTask& task) {
     for (uint32_t table_id : task.GetTables())
         InitTable(table_id, spec.GetAllThreadIds());
     Barrier();
+
+    // Create and Initialize TimeTable and WorkloadTable
+    std::vector<third_party::Range> ranges;
+    for (auto node :  nodes_)
+        ranges.push_back(third_party::Range(node.id, node.id + 1)); // end range is exclusive
+
+    auto* time_pm = new RangePartitionManager(id_mapper_.get()->GetAllServerThreads(), ranges);
+    auto timeTable_id = CreateTable<double>(std::unique_ptr<AbstractPartitionManager>(time_pm),
+        ModelType::BSP, StorageType::Map);
+    InitTable(timeTable_id, spec.GetAllThreadIds());
+    Barrier();
+
+    auto* work_pm = new RangePartitionManager(id_mapper_.get()->GetAllServerThreads(), ranges);
+    auto workloadTable_id = CreateTable<int>(std::unique_ptr<AbstractPartitionManager>(work_pm),
+        ModelType::ASP, StorageType::Map);
+    InitTable(workloadTable_id, spec.GetAllThreadIds());
+    Barrier();
     
     // Spawn user threads if server == workers
     if (spec.HasLocalWorkers(node_.id)) {
@@ -217,8 +235,12 @@ void Engine::Run(const MLTask& task) {
           info.send_queue = sender_.get()->GetMessageQueue();
           info.partition_manager_map = *pm_map;
           info.callback_runner = callback_runner_.get();
+          info.timeTable_id = timeTable_id;
+          info.workloadTable_id = workloadTable_id;
 
-          LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id;
+          LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id
+                    << " timeTable_id: " << info.timeTable_id << " workloadTable_id: "
+                    << info.workloadTable_id;
 
           UserThread* worker = new UserThread(info.thread_id, task, info);
           mailbox_.get()->RegisterQueue(info.thread_id, worker_thread_.get()->GetWorkQueue());

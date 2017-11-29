@@ -20,6 +20,9 @@ struct Info {
   ThreadsafeQueue<Message>* send_queue;
   std::map<uint32_t, AbstractPartitionManager*> partition_manager_map;
   AbstractCallbackRunner* callback_runner;
+  uint32_t timeTable_id;
+  uint32_t workloadTable_id;
+
   std::string DebugString() const {
     std::stringstream ss;
     ss << "thread_id: " << thread_id << " worker_id: " << worker_id;
