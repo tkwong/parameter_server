@@ -54,6 +54,21 @@ public:
       m_st_dev = 0.;
       m_times.clear();
     }
+    
+    typename TimeT::rep last()
+    {
+        return m_times.back();
+    }
+
+    typename TimeT::rep total() const
+    {
+        return m_sum;
+    }
+    
+    typename TimeT::rep sum() const
+    {
+        return m_sum;
+    }
 
     typename TimeT::rep mean() const
     {
@@ -130,15 +145,16 @@ public:
     }
 
 private:
+  
     void compute_mean()
     {
-        auto sum = std::accumulate(m_times.begin() + m_throw_away, m_times.end(), 0);
-        m_mean = sum / (m_times.size()-m_throw_away);
+        m_sum = std::accumulate(m_times.begin() + m_throw_away, m_times.end(), 0);
+        m_mean = m_sum / (m_times.size()-m_throw_away);
     }
 
     void compute_st_dev()
     {
-      auto m_size = m_times.size()-m_throw_away;
+        auto m_size = m_times.size()-m_throw_away;
         std::vector<typename TimeT::rep> diff(m_size);
         std::transform(m_times.begin() + m_throw_away, m_times.end(), diff.begin(),
                        [this](typename TimeT::rep t) {return t - this->m_mean;});
@@ -155,6 +171,8 @@ private:
     
     std::chrono::time_point<std::chrono::steady_clock> t1;
 
+    typename TimeT::rep m_sum;
+    
     typename TimeT::rep m_mean;
 
     typename TimeT::rep m_st_dev;
