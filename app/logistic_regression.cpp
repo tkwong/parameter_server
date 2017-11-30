@@ -198,8 +198,12 @@ int main(int argc, char** argv)
         LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples";
 
         // Train
-        std::vector<long long> m_times;
-        std::vector<long long> m_batch_times;
+#ifdef BENCHMARK       
+        Benchmark<> benchmark_iteration;
+        Benchmark<> benchmark_batch;
+        Benchmark<> benchmark_iter_process_time;
+        Benchmark<> benchmark_wait_time;
+#endif
 
         double learning_rate = FLAGS_alpha;
 
@@ -218,20 +222,23 @@ int main(int argc, char** argv)
                           << workload[0] ;
             }
 
-            auto iter_start_time = std::chrono::steady_clock::now();
+#ifdef BENCHMARK
+            benchmark_iteration.start_measure();
+#endif
 
             // Prepare Sample indices
             std::random_shuffle(indices.begin(), indices.end());
 
             // LOG(INFO) << "Start batch "<< FLAGS_batch_size << "...  [" << info.worker_id  << "]";
             // Pick a sample randomly from sample indices
-            auto iter_batch_time_1 = std::chrono::steady_clock::now();
             
             
             //Get key for this batch size (for example: batch = 10)
             for (int b = 0 ; b < FLAGS_batch_size ; b++ )
             {
-
+#ifdef BENCHMARK
+              benchmark_batch.start_measure();
+#endif
               auto sample = node_samples[indices[ b % node_samples.size() ]];
 
               // Prepare the keys from sample
@@ -244,13 +251,21 @@ int main(int argc, char** argv)
 
 
               // Get Vals
-              std::vector<double> vals;
-              auto iter_wait_time_1 = std::chrono::steady_clock::now();
+#ifdef BENCHMARK
+              benchmark_wait_time.start_measure();
+#endif
+
+              std::vector<double> vals;              
               table.Get(keys, &vals);
-              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_wait_time_1).count() << "ms";
+              
+#ifdef BENCHMARK
+              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << benchmark_wait_time.stop_measure();
+#endif
               
               
-              auto iter_process_time = std::chrono::steady_clock::now();
+#ifdef BENCHMARK
+              benchmark_iter_process_time.start_measure();
+#endif
               // DLOG(INFO) << "vals.size(): " << vals.size();
               CHECK_EQ(keys.size(), vals.size());
 
@@ -294,58 +309,33 @@ int main(int argc, char** argv)
               }
               // Push
               table.Add(keys, vals);
-              LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_process_time).count() << "ms";
-
-
+              
+#ifdef BENCHMARK
+              benchmark_batch.stop_measure();
+              LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << benchmark_iter_process_time.stop_measure();
+#endif
 
             }
 
             // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
 
-            auto iter_batch_time_2 = std::chrono::steady_clock::now();
-            m_batch_times.push_back(std::chrono::duration<double, std::milli>(iter_batch_time_2 - iter_batch_time_1).count());
-
             table.Clock();
             timeTable.Add({info.thread_id}, std::vector<double>({1.2345}));
             timeTable.Clock();
 
-            m_times.push_back( std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_start_time).count() );
+#ifdef BENCHMARK
+              benchmark_iteration.stop_measure();
 
             if ((i % (FLAGS_n_iters/10)) == 0)
-            {
-
-                auto sum = std::accumulate(m_times.begin(), m_times.end(), 0);
-                auto m_mean = sum / (FLAGS_n_iters/10.);
-
-                std::vector<long long> diff( FLAGS_n_iters/10. );
-                std::transform(m_times.begin(), m_times.end(), diff.begin(),
-                               [m_mean](long long t) {return t - m_mean;});
-
-                auto sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0);
-                auto m_st_dev = std::sqrt(sq_sum / (FLAGS_n_iters/10.));
-
-                auto batch_sum = std::accumulate(m_batch_times.begin(), m_batch_times.end(), 0);
-                auto m_batch_mean = batch_sum / (FLAGS_n_iters/10.);
-
-                std::vector<long long> batch_diff( FLAGS_n_iters/10. );
-                std::transform(m_batch_times.begin(), m_batch_times.end(), batch_diff.begin(),
-                               [m_batch_mean](long long t) {return t - m_batch_mean;});
-
-                auto batch_sq_sum = std::inner_product(batch_diff.begin(), batch_diff.end(), batch_diff.begin(), 0);
-                auto m_batch_st_dev = std::sqrt(batch_sq_sum / (FLAGS_n_iters/10.));
-
-
-                LOG(INFO) << "Worker " << info.worker_id << " for " << std::setw(8) << i << " iterations"
-                                  << " total: " << std::setw(2) << sum << "ms"
-                                  << " mean: " << std::setw(3) << m_mean << "ms"
-                                  << " st. dev: : " << std::setw(6) << m_st_dev
-                                  << " batch: " << std::setw(2) << batch_sum << "ms"
-                                  << " mean: " << std::setw(3) << m_batch_mean << "ms"
-                                  << " st. dev: : " << std::setw(6) << m_batch_st_dev;
-                m_times.clear();
-                m_batch_times.clear();
-
+            {              
+              LOG(INFO) << "Worker " << info.worker_id  << " for " << i << " Iterations. "
+                                << "iteration: "        << benchmark_iteration.mean()/1000. << " ms "
+                                << "batch: "            << benchmark_batch.mean()/1000. << " ms "
+                                << "process_time: "     << benchmark_iter_process_time.mean()/1000. << " ms "
+                                << "wait_time: "        << benchmark_wait_time.mean()/1000. << " ms ";
+                                  
             }
+#endif
         }
 
 
@@ -383,7 +373,7 @@ int main(int argc, char** argv)
                   << " " << float(correct)/test_samples.size()*100 << " percent";
 
 #ifdef BENCHMARK
-        }, info); LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark << "ms";
+        }, info); LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark/1000. << "ms";
 #endif
     });
 
