@@ -148,8 +148,7 @@ void Engine::Barrier() {
 
 WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_allocs) {
     WorkerSpec result(worker_allocs);
-    // auto workers = result.GetLocalWorkers(node_.id);
-    // LOG(INFO) << "workers size: " << workers.size();
+
     for (auto worker_alloc : worker_allocs)
     {
         if (node_.id != worker_alloc.node_id)
@@ -176,9 +175,6 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
 
     for (auto server_id : id_mapper_.get()->GetAllServerThreads())
     {
-        // auto model_ptr = server_ptr->GetModel(table_id);
-        // if (!model_ptr) continue;
-
         LOG(INFO) << "Sending Reset Message to server_id: " << server_id << " for table_id: " << table_id;
         Message reset_msg;
         reset_msg.meta.sender = worker_thread_.get()->GetId();
@@ -200,14 +196,11 @@ void Engine::Run(const MLTask& task) {
     CHECK(task.IsSetup());
     
     WorkerSpec spec = AllocateWorkers(task.GetWorkerAlloc());
-    //LOG(INFO) << "Allocated Threads size " << spec.GetLocalThreads(node_.id).size();;
 
     // Elect scheduler
     uint32_t scheduler_id = 0; // 0 can never be a worker thread id
     std::vector<uint32_t>* threadIds;
     std::vector<uint32_t> allThreadIds(spec.GetAllThreadIds());
-
-    //LOG(INFO) << "allThreadIds.size: " << allThreadIds.size();
 
     if (allThreadIds.size() > 1)
     {
@@ -260,14 +253,15 @@ void Engine::Run(const MLTask& task) {
           info.partition_manager_map = *pm_map;
           info.callback_runner = callback_runner_.get();
 
-          info.timeTable_id = timeTable_id;
-          info.workloadTable_id = workloadTable_id;
+          info.timeTable = new KVClientTable<double>(info.thread_id, timeTable_id, info.send_queue,
+              pm_map->find(timeTable_id)->second, info.callback_runner);
+          info.workloadTable = new KVClientTable<int>(info.thread_id, workloadTable_id, info.send_queue,
+              pm_map->find(workloadTable_id)->second, info.callback_runner);
+
           info.scheduler_id = scheduler_id;
           info.thread_ids = std::vector<uint32_t>({*threadIds});
 
-          LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id
-                    << " timeTable_id: " << info.timeTable_id << " workloadTable_id: "
-                    << info.workloadTable_id;
+          LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id;
 
           UserThread* worker = new UserThread(info.thread_id, task, info);
           mailbox_.get()->RegisterQueue(info.thread_id, worker_thread_.get()->GetWorkQueue());

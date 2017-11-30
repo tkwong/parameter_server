@@ -21,8 +21,9 @@ struct Info {
   std::map<uint32_t, AbstractPartitionManager*> partition_manager_map;
   AbstractCallbackRunner* callback_runner;
 
-  uint32_t timeTable_id;
-  uint32_t workloadTable_id;
+  KVClientTable<double>* timeTable;
+  KVClientTable<int>* workloadTable;
+
   uint32_t scheduler_id;
   std::vector<uint32_t> thread_ids;
 
@@ -42,6 +43,19 @@ struct Info {
   KVClientTable<Val> CreateKVClientTable(uint32_t table_id) const {
     return KVClientTable<Val>(thread_id, table_id, send_queue, 
         partition_manager_map.find(table_id)->second, callback_runner);
+  }
+
+  int getWorkload() const
+  {
+    std::vector<int> workload;
+    workloadTable->Get({thread_id}, &workload);
+    return workload.at(0);
+  }
+
+  void reportTime(double time) const
+  {
+    timeTable->Add({thread_id}, std::vector<double>({time}));
+    timeTable->Clock();
   }
 };
 

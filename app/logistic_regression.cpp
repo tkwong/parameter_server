@@ -168,20 +168,20 @@ int main(int argc, char** argv)
 
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
-        KVClientTable<double> timeTable = info.CreateKVClientTable<double>(info.timeTable_id);
-        KVClientTable<int> workloadTable = info.CreateKVClientTable<int>(info.workloadTable_id);
-        
         if (info.thread_id == info.scheduler_id)
         {
             LOG(INFO) << "Worker id: " << info.worker_id << " is scheduler";
-            workloadTable.Add(info.thread_ids, std::vector<int>(info.thread_ids.size(), 50));
+            info.workloadTable->Add(info.thread_ids, std::vector<int>(info.thread_ids.size(), 10));
 
             for (int i = 0; i < FLAGS_n_iters; i++)
             {
-                timeTable.Clock();
+                info.timeTable->Clock();
                 std::vector<double> times;
-                timeTable.Get(info.thread_ids, &times);
+                info.timeTable->Get(info.thread_ids, &times);
                 LOG(INFO) << "Scheduler got time : " << times[0];
+
+                info.workloadTable->Add(info.thread_ids, 
+                    std::vector<int>(info.thread_ids.size(), 50));
             }
 
             LOG(INFO) << "Scheduler terminating";
@@ -210,16 +210,17 @@ int main(int argc, char** argv)
         std::vector<unsigned int> indices(node_samples.size());
         std::iota(indices.begin(), indices.end(), 0);
 
+        int batch_size = FLAGS_batch_size;
+
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         {
-            if (i % 5 ==0)
+            if (i % 5 == 0)
             {
-                std::vector<int> workload;
-                workloadTable.Get({info.thread_id}, &workload);
+                batch_size = info.getWorkload();
                 LOG(INFO) << "Worker " << info.worker_id
                           << " workload for the next 5 iterations is "
-                          << workload[0] ;
+                          << batch_size ;
             }
 
 #ifdef BENCHMARK
@@ -234,7 +235,7 @@ int main(int argc, char** argv)
             
             
             //Get key for this batch size (for example: batch = 10)
-            for (int b = 0 ; b < FLAGS_batch_size ; b++ )
+            for (int b = 0 ; b < batch_size ; b++ )
             {
 #ifdef BENCHMARK
               benchmark_batch.start_measure();
@@ -320,11 +321,11 @@ int main(int argc, char** argv)
             // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
 
             table.Clock();
-            timeTable.Add({info.thread_id}, std::vector<double>({1.2345}));
-            timeTable.Clock();
 
 #ifdef BENCHMARK
-              benchmark_iteration.stop_measure();
+            benchmark_iteration.stop_measure();
+
+            info.reportTime(benchmark_iter_process_time.mean());
 
             if ((i % (FLAGS_n_iters/10)) == 0)
             {              
