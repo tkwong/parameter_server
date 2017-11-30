@@ -64,6 +64,11 @@ public:
     {
         return m_st_dev;
     }
+    
+    typename TimeT::rep st_dev() const
+    {
+        return m_st_dev;
+    }
 
     template <typename Fun, typename... Args>
     static std::pair< typename TimeT::rep,  typename std::result_of< Fun(Args...) >::type >
@@ -73,8 +78,8 @@ public:
         auto result = std::forward<Fun>(fun)(std::forward<Args>(args)...);
         auto t2 = std::chrono::steady_clock::now();
 
-        auto time = std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
-        return std::make_pair(time, result);
+        auto _time = std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
+        return std::make_pair(_time, result);
     }
     
     template <typename Fun, typename... Args>
@@ -88,21 +93,58 @@ public:
         return std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
     }
     
+    template <typename Fun, typename... Args>
+    typename TimeT::rep
+    measure_r(Fun&& fun, Args&&... args)
+    {
+        auto t1 = std::chrono::steady_clock::now();
+        std::forward<Fun>(fun)(std::forward<Args>(args)...);
+        auto t2 = std::chrono::steady_clock::now();
+        auto _time = std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
+        
+        m_times.push_back(_time);
+        
+        compute_mean();
+        compute_st_dev();
+        
+        return _time;
+    }
+    
+    std::chrono::time_point<std::chrono::steady_clock> start_measure()
+    {
+        t1 = std::chrono::steady_clock::now();
+        return t1;
+    }
+    
+    typename TimeT::rep stop_measure()
+    {
+      auto t2 = std::chrono::steady_clock::now();
+      auto _time = std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
+      
+      m_times.push_back(_time);
+      
+      compute_mean();
+      compute_st_dev();
+      
+      return _time;
+    }
+
 private:
     void compute_mean()
     {
         auto sum = std::accumulate(m_times.begin() + m_throw_away, m_times.end(), 0);
-        m_mean = sum / m_num_iter;
+        m_mean = sum / (m_times.size()-m_throw_away);
     }
 
     void compute_st_dev()
     {
-        std::vector<typename TimeT::rep> diff(m_num_iter);
+      auto m_size = m_times.size()-m_throw_away;
+        std::vector<typename TimeT::rep> diff(m_size);
         std::transform(m_times.begin() + m_throw_away, m_times.end(), diff.begin(),
                        [this](typename TimeT::rep t) {return t - this->m_mean;});
 
         auto sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0);
-        m_st_dev = std::sqrt(sq_sum / m_num_iter);
+        m_st_dev = std::sqrt(sq_sum / m_size);
     }
 
     int m_num_iter;
@@ -110,6 +152,8 @@ private:
     int m_throw_away;
 
     std::vector<typename TimeT::rep> m_times;
+    
+    std::chrono::time_point<std::chrono::steady_clock> t1;
 
     typename TimeT::rep m_mean;
 
