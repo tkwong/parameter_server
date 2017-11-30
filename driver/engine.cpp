@@ -146,14 +146,20 @@ void Engine::Barrier() {
     LOG(INFO) << "Barrier called";
 }
 
-WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_alloc) {
-    WorkerSpec result(worker_alloc);
-    auto workers = result.GetLocalWorkers(node_.id);
-    LOG(INFO) << "workers size: " << workers.size();
-    for (auto worker : workers)
+WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_allocs) {
+    WorkerSpec result(worker_allocs);
+    // auto workers = result.GetLocalWorkers(node_.id);
+    // LOG(INFO) << "workers size: " << workers.size();
+    for (auto worker_alloc : worker_allocs)
     {
-        uint32_t tid = id_mapper_.get()->AllocateWorkerThread(node_.id);
-        result.InsertWorkerIdThreadId(worker, tid);
+        if (node_.id != worker_alloc.node_id)
+            id_mapper_.get()->AllocateWorkerThread(worker_alloc.node_id); // The Worker helper thread
+        for (auto worker : result.GetLocalWorkers(worker_alloc.node_id))
+        {
+            uint32_t tid = id_mapper_.get()->AllocateWorkerThread(worker_alloc.node_id);
+            result.InsertWorkerIdThreadId(worker, tid);
+            LOG(INFO) << "Inserting worker id: " << worker << " thread id: " << tid;
+        }
     }
     return result;
 }
@@ -194,11 +200,29 @@ void Engine::Run(const MLTask& task) {
     CHECK(task.IsSetup());
     
     WorkerSpec spec = AllocateWorkers(task.GetWorkerAlloc());
-    LOG(INFO) << "Allocated Threads size " << spec.GetLocalThreads(node_.id).size();;
+    //LOG(INFO) << "Allocated Threads size " << spec.GetLocalThreads(node_.id).size();;
+
+    // Elect scheduler
+    uint32_t scheduler_id = 0; // 0 can never be a worker thread id
+    std::vector<uint32_t>* threadIds;
+    std::vector<uint32_t> allThreadIds(spec.GetAllThreadIds());
+
+    //LOG(INFO) << "allThreadIds.size: " << allThreadIds.size();
+
+    if (allThreadIds.size() > 1)
+    {
+        scheduler_id = *(allThreadIds.begin());
+        threadIds = new std::vector<uint32_t>(allThreadIds.begin() + 1, allThreadIds.end());
+        LOG(INFO) << "Worker thread_id: " << scheduler_id << " is chosen to be the scheduler";
+    }
+    else
+    {
+        threadIds = &allThreadIds;
+    }
     
     // Init tables
     for (uint32_t table_id : task.GetTables())
-        InitTable(table_id, spec.GetAllThreadIds());
+        InitTable(table_id, *threadIds); // Do not init scheduler
     Barrier();
 
     // Create and Initialize TimeTable and WorkloadTable
@@ -209,13 +233,13 @@ void Engine::Run(const MLTask& task) {
     auto* time_pm = new RangePartitionManager(id_mapper_.get()->GetAllServerThreads(), ranges);
     auto timeTable_id = CreateTable<double>(std::unique_ptr<AbstractPartitionManager>(time_pm),
         ModelType::BSP, StorageType::Map);
-    InitTable(timeTable_id, spec.GetAllThreadIds());
+    InitTable(timeTable_id, allThreadIds); // Init all worker and scheduler
     Barrier();
 
     auto* work_pm = new RangePartitionManager(id_mapper_.get()->GetAllServerThreads(), ranges);
     auto workloadTable_id = CreateTable<int>(std::unique_ptr<AbstractPartitionManager>(work_pm),
         ModelType::ASP, StorageType::Map);
-    InitTable(workloadTable_id, spec.GetAllThreadIds());
+    InitTable(workloadTable_id, allThreadIds); // Init all worker and scheduler
     Barrier();
     
     // Spawn user threads if server == workers
@@ -235,8 +259,11 @@ void Engine::Run(const MLTask& task) {
           info.send_queue = sender_.get()->GetMessageQueue();
           info.partition_manager_map = *pm_map;
           info.callback_runner = callback_runner_.get();
+
           info.timeTable_id = timeTable_id;
           info.workloadTable_id = workloadTable_id;
+          info.scheduler_id = scheduler_id;
+          info.thread_ids = std::vector<uint32_t>({*threadIds});
 
           LOG(INFO) << "thread_id: " << info.thread_id << " worker_id: " << info.worker_id
                     << " timeTable_id: " << info.timeTable_id << " workloadTable_id: "

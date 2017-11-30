@@ -16,17 +16,18 @@ void BSPModel::Clock(Message& msg) {
   // DLOG(INFO) << "CLOCKED " << clock << " msg.meta.sender " << msg.meta.sender;
   if (clock != -1)
   {
-      for(auto message : get_buffer_) {
-        this->Get(message);
-      }
-      get_buffer_.clear();
-
+      // Apply changes before replying get
       for(auto message : add_buffer_) {
         // this->Add(message);
         // CHANGED: now do the actual storage Add
         storage_->Add(message);
       } 
       add_buffer_.clear();
+
+      for(auto message : get_buffer_) {
+        this->Get(message);
+      }
+      get_buffer_.clear();
   }
 }
 
@@ -51,7 +52,7 @@ void BSPModel::Add(Message& msg) {
 void BSPModel::Get(Message& msg) {
   const int clock = progress_tracker_.GetProgress(msg.meta.sender);
   // DLOG(INFO) << "Get sender: " << msg.meta.sender << " clock: " << clock ;
-  if (clock > progress_tracker_.GetMinClock() + 1)
+  if (clock > progress_tracker_.GetMinClock())
       get_buffer_.push_back(msg);
   else
       reply_queue_->Push(storage_->Get(msg));  

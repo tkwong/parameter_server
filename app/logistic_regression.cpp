@@ -168,6 +168,25 @@ int main(int argc, char** argv)
 
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
+        KVClientTable<double> timeTable = info.CreateKVClientTable<double>(info.timeTable_id);
+        KVClientTable<int> workloadTable = info.CreateKVClientTable<int>(info.workloadTable_id);
+        
+        if (info.thread_id == info.scheduler_id)
+        {
+            LOG(INFO) << "Worker id: " << info.worker_id << " is scheduler";
+            workloadTable.Add(info.thread_ids, std::vector<int>(info.thread_ids.size(), 50));
+
+            for (int i = 0; i < FLAGS_n_iters; i++)
+            {
+                timeTable.Clock();
+                std::vector<double> times;
+                timeTable.Get(info.thread_ids, &times);
+                LOG(INFO) << "Scheduler got time : " << times[0];
+            }
+
+            LOG(INFO) << "Scheduler terminating";
+            return;
+        }
 #ifdef BENCHMARK
         auto benchmark = Benchmark<>::measure([&](const Info& info) {
 #endif
@@ -175,22 +194,8 @@ int main(int argc, char** argv)
         LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
 
         KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
-        KVClientTable<double> timeTable = info.CreateKVClientTable<double>(info.timeTable_id);
-        KVClientTable<int> workloadTable = info.CreateKVClientTable<int>(info.workloadTable_id);
 
-        std::vector<Key> id_key({info.worker_id});
-        timeTable.Add(id_key, {100.1});
-        std::vector<int> workload;
-        workloadTable.Get(id_key, &workload);
-        LOG(INFO) << "Workload for " << info.worker_id << " is " << workload[0];
-
-        LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples.";
-
-        // LOG(INFO) << "Initializing keys ...  [" << info.worker_id  << "]";
-        // // Initialize all keys with 0
-        // std::vector<double> init_vals(FLAGS_n_features+1);
-        // table.Add(keys, init_vals);
-        // LOG(INFO) << "Key Initialized  [" << info.worker_id  << "]";
+        LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples";
 
         // Train
         std::vector<long long> m_times;
@@ -204,6 +209,15 @@ int main(int argc, char** argv)
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         {
+            if (i % 5 ==0)
+            {
+                std::vector<int> workload;
+                workloadTable.Get({info.thread_id}, &workload);
+                LOG(INFO) << "Worker " << info.worker_id
+                          << " workload for the next 5 iterations is "
+                          << workload[0] ;
+            }
+
             auto iter_start_time = std::chrono::steady_clock::now();
 
             // Prepare Sample indices
@@ -281,6 +295,9 @@ int main(int argc, char** argv)
               // Push
               table.Add(keys, vals);
               LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_process_time).count() << "ms";
+
+
+
             }
 
             // LOG(INFO) << "Finished batch "<< FLAGS_batch_size << " [" << info.worker_id  << "]";
@@ -289,6 +306,8 @@ int main(int argc, char** argv)
             m_batch_times.push_back(std::chrono::duration<double, std::milli>(iter_batch_time_2 - iter_batch_time_1).count());
 
             table.Clock();
+            timeTable.Add({info.thread_id}, std::vector<double>({1.2345}));
+            timeTable.Clock();
 
             m_times.push_back( std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - iter_start_time).count() );
 
