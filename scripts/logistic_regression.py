@@ -15,8 +15,8 @@ from os.path import dirname, join
 # 4:worker5:37542
 #
 #hostfile = "machinefiles/local"
-#hostfile = "machinefiles/5node"
-hostfile = "machinefiles/2node"
+hostfile = "machinefiles/5node"
+#hostfile = "machinefiles/2node"
 progfile = "build/LogisticRegression"
 
 script_path = os.path.realpath(__file__)
@@ -32,7 +32,11 @@ params = {
     #"n_features": 1000000,
     "input": "hdfs://proj10:9000/datasets/classification/a9/",
     "n_features": 123,
-    "n_workers_per_node": 1
+    "n_workers_per_node": 1,
+    "n_iters": 200,
+    "batch_size": 100,
+    #"with_injected_straggler": 0.005,
+    "with_injected_straggler_delay": 1
 }
 
 ssh_cmd = (
