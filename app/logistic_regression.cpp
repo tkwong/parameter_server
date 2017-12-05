@@ -167,6 +167,11 @@ int main(int argc, char** argv)
     task.SetWorkerAlloc(worker_alloc);
     task.SetTables({table_id});
     task.SetScheduler([table_id, node_samples, test_samples](const Info& info){
+      // Tunning Parameters
+      const int    update_rate        = 5;   // iterations
+      const double update_threshold   = 1.5; // min-max time diff in factor
+      const double rebalance_workload = 0.2; // percentage
+
       LOG(INFO) << "Worker id: " << info.worker_id << " is scheduler";
 
       std::vector<int> workloads(info.thread_ids.size(), FLAGS_batch_size);
@@ -190,7 +195,7 @@ int main(int argc, char** argv)
           LOG(INFO) << tstream.str();
 
           // Scheduling algorithm
-          if (i % 6 == 0)
+          if (i % (update_rate + 1) == 0)
           {
               double min_time = *std::min_element(times.begin(), times.end());
               int workload_buffer = 0, count = 0;
@@ -200,10 +205,10 @@ int main(int argc, char** argv)
 
               for (int j = 0; j < info.thread_ids.size(); j++)
               {
-                  if (times[j] > min_time * 1.5)
+                  if (times[j] > min_time * update_threshold)
                   {
-                      workload_buffer += round(workloads[j] * 0.2);
-                      workloads[j] = round(workloads[j] * 0.8);
+                      workload_buffer += round(workloads[j] * rebalance_workload);
+                      workloads[j] = round(workloads[j] * (1 - rebalance_workload));
                   }
                   else count += 1;
 
@@ -265,11 +270,13 @@ int main(int argc, char** argv)
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         {
-            if (i % 5 == 0)
+            if (i % update_rate == 0)
             {
                 batch_size = info.getWorkload();
                 LOG(INFO) << "Worker " << info.worker_id
-                          << " workload for the next 5 iterations is "
+                          << " workload for the next "
+                          << update_rate
+                          << "  iterations is "
                           << batch_size ;
             }
 
