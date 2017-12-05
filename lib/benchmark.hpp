@@ -55,9 +55,13 @@ public:
       m_times.clear();
     }
     
-    typename TimeT::rep last()
+    typename TimeT::rep last(int n=1)
     {
-        return m_times.back();
+      typename TimeT::rep result(0);
+      for (auto it = m_times.rbegin(); it < m_times.rbegin() + n && it < m_times.rend() ; it++)
+        result += *it;
+      
+      return result;
     }
 
     typename TimeT::rep total() const
