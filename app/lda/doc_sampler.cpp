@@ -1,4 +1,3 @@
-//#include "examples/lda/doc_sampler.hpp"
 #include "doc_sampler.hpp"
 #include "glog/logging.h"
 #include "gflags/gflags.h"

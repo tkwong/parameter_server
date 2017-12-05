@@ -40,7 +40,7 @@ DEFINE_int32(num_servers_per_node, 1, "num_servers_per_node");
 DEFINE_int32(num_workers_per_node, 1, "num_workers_per_node");
 DEFINE_int32(num_iters, 100, "number of iters");
 DEFINE_int32(kStaleness, 0, "stalness");
-DEFINE_string(kModelType, "", "ASP/SSP/BSP/SparseSSP");
+DEFINE_string(kModelType, "", "ASP/SSP/BSP");
 DEFINE_string(kStorageType, "", "Map/Vector");
 DEFINE_int32(num_dims, 0, "number of dimensions");
 DEFINE_int32(batch_size, 100, "batch size of each epoch");
@@ -686,8 +686,6 @@ namespace csci5570 {
                         model_type = ModelType::SSP;
                 } else if (FLAGS_kModelType == "BSP") {
                         model_type = ModelType::BSP;
-                } else if (FLAGS_kModelType == "SparseSSP") {
-                        model_type = ModelType::SparseSSP;
                 } else {
                         LOG(FATAL) << "model type not specified";
                         CHECK(false) << "model type error: " << FLAGS_kModelType;
@@ -701,19 +699,7 @@ namespace csci5570 {
                         LOG(FATAL) << "storage type not specified";
                         CHECK(false) << "storage type error: " << FLAGS_kStorageType;
                 }
-                SparseSSPRecorderType sparse_ssp_recorder_type;
-                if (FLAGS_kSparseSSPRecorderType == "None") {
-                        sparse_ssp_recorder_type = SparseSSPRecorderType::None;
-                } else if (FLAGS_kSparseSSPRecorderType == "Map") {
-                        sparse_ssp_recorder_type = SparseSSPRecorderType::Map;
-                } else if (FLAGS_kSparseSSPRecorderType == "Vector") {
-                        sparse_ssp_recorder_type = SparseSSPRecorderType::Vector;
-                } else {
-                        LOG(FATAL) << "sparse ssp recorder type not specified";
-                        CHECK(false) << "sparse_ssp_storage type error: " << FLAGS_kSparseSSPRecorderType;
-                }
-                engine.CreateTable<float>(LDATableId, range,
-                                model_type, storage_type, FLAGS_kStaleness, FLAGS_kSpeculation, sparse_ssp_recorder_type);
+                LDATableId = engine.CreateTable<float>(model_type, storage_type, FLAGS_kStaleness);
 
                 // 3.1 Create LDA Stat Table
                 const int LDAStatTableId = 1;
@@ -725,7 +711,7 @@ namespace csci5570 {
                 stat_table_range.push_back({(uint64_t)(lda_stat_table_dim / num_total_servers * (num_total_servers - 1)), (uint64_t)lda_stat_table_dim});
                 //stat_table_range.push_back({0, 9}); //###
                 //stat_table_range.push_back({9, 18}); //###
-                engine.CreateTable<float>(LDAStatTableId, stat_table_range, ModelType::ASP, StorageType::Vector, FLAGS_kStaleness, FLAGS_kSpeculation, SparseSSPRecorderType::None);
+                LDAStatTableId = engine.CreateTable<float>(ModelType::ASP, StorageType::Vector, FLAGS_kStaleness);
 
 
                 engine.Barrier();
@@ -782,7 +768,7 @@ namespace csci5570 {
                                         ofs.open(resFile, std::ofstream::out | std::ofstream::app);
                                         ofs << FLAGS_input << " num_topics:"<< FLAGS_num_topics <<" num_workers_per_node:"<< FLAGS_num_workers_per_node << " num_total_workers: " << num_total_workers;
                                         ofs <<" kStaleness:" << FLAGS_kStaleness;
-                                        ofs << "\nkSpeculation:" << FLAGS_kSpeculation << " kModelType:" << FLAGS_kModelType << " kSparseSSPRecorderType:" << FLAGS_kSparseSSPRecorderType << " kStorageType:" << FLAGS_kStorageType << "\n";
+                                        ofs << "\nkSpeculation:" << FLAGS_kSpeculation << " kModelType:" << FLAGS_kModelType << " kStorageType:" << FLAGS_kStorageType << "\n";
                                         ofs << " iter | pull_t | push_t | samplet | P+S+S | mailboxt | llh_time | llh\n";
                                         ofs.close();
                                 }

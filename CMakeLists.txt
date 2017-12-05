@@ -59,3 +59,4 @@ add_subdirectory(driver)
 
 add_subdirectory(test)
 add_subdirectory(app)
+add_subdirectory(app/lda)
