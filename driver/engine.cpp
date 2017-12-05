@@ -221,7 +221,10 @@ void Engine::Run(const MLTask& task) {
     // Create and Initialize TimeTable and WorkloadTable
     std::vector<third_party::Range> ranges;
     for (auto node :  nodes_)
-        ranges.push_back(third_party::Range(node.id, node.id + 1)); // end range is exclusive
+    {
+        ranges.push_back(third_party::Range(node.id * SimpleIdMapper::kMaxThreadsPerNode, 
+            (node.id + 1) * SimpleIdMapper::kMaxThreadsPerNode)); // end range is exclusive
+    }
 
     auto* time_pm = new RangePartitionManager(id_mapper_.get()->GetAllServerThreads(), ranges);
     auto timeTable_id = CreateTable<double>(std::unique_ptr<AbstractPartitionManager>(time_pm),

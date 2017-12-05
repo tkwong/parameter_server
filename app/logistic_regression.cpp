@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <sstream>
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -168,20 +169,72 @@ int main(int argc, char** argv)
 
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
+        // Scheduler task
         if (info.thread_id == info.scheduler_id)
         {
             LOG(INFO) << "Worker id: " << info.worker_id << " is scheduler";
-            info.workloadTable->Add(info.thread_ids, std::vector<int>(info.thread_ids.size(), 10));
+
+            std::vector<int> workloads(info.thread_ids.size(), FLAGS_batch_size);
+            info.workloadTable->Add(info.thread_ids, workloads);
 
             for (int i = 0; i < FLAGS_n_iters; i++)
             {
+                LOG(INFO) << "===== Iteration " << i << " =====";
+
                 info.timeTable->Clock();
                 std::vector<double> times;
                 info.timeTable->Get(info.thread_ids, &times);
-                LOG(INFO) << "Scheduler got time : " << times[0];
 
-                info.workloadTable->Add(info.thread_ids, 
-                    std::vector<int>(info.thread_ids.size(), 50));
+                std::stringstream tstream;
+                tstream << std::endl;
+                tstream << "-------------- TimeTable ---------------" << std::endl;
+                for (int j = 0; j < info.thread_ids.size(); j++)
+                    tstream << "| Thread id: " << info.thread_ids[j] << " | Iter time: "
+                            << std::setw(7) << times[j] << " |" << std::endl;
+                tstream << "----------------------------------------" << std::endl;
+                LOG(INFO) << tstream.str();
+
+                // Scheduling algorithm
+                if (i % 6 == 0)
+                {
+                    double min_time = *std::min_element(times.begin(), times.end());
+                    int workload_buffer = 0, count = 0;
+
+                    std::multimap<double, uint32_t> time2thread;
+                    std::map<uint32_t, int> thread2index;
+
+                    for (int j = 0; j < info.thread_ids.size(); j++)
+                    {
+                        if (times[j] > min_time * 1.5)
+                        {
+                            workload_buffer += round(workloads[j] * 0.2);
+                            workloads[j] = round(workloads[j] * 0.8);
+                        }
+                        else count += 1;
+
+                        time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
+                        thread2index.insert(std::make_pair(info.thread_ids[j], j));
+                    }
+
+                    for (auto pair : time2thread)
+                    {
+                        workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
+                        workload_buffer -= round(workload_buffer / double(count));
+                        count -= 1;
+                        if (workload_buffer < 1) break;
+                    }
+
+                    info.workloadTable->Add(info.thread_ids, workloads); 
+                }
+
+                std::stringstream wstream;
+                wstream << std::endl;
+                wstream << "------------ WorkloadTable ------------" << std::endl;
+                for (int j = 0; j < info.thread_ids.size(); j++)
+                    wstream << "| Thread id: " << info.thread_ids[j] << " | Batch size: "
+                            << std::setw(5) << workloads[j] << " |" << std::endl;
+                wstream << "---------------------------------------" << std::endl;
+                LOG(INFO) << wstream.str();
             }
 
             LOG(INFO) << "Scheduler terminating";
@@ -260,7 +313,8 @@ int main(int argc, char** argv)
               table.Get(keys, &vals);
               
 #ifdef BENCHMARK
-              LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << benchmark_wait_time.stop_measure();
+              // LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << benchmark_wait_time.stop_measure();
+              benchmark_wait_time.stop_measure();
 #endif
               
               
@@ -277,16 +331,8 @@ int main(int argc, char** argv)
                   yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
               }
 
-              // for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it){
-              //     DLOG(INFO) << "it.index(): " << it.index();
-              //     DLOG(INFO) << "it.value(): " << it.value();
-              //     DLOG(INFO) << "yhat: " << yhat;
-              //     yhat += vals.at(it.index()) * it.value();
-              // }
-
 
               double predict = 1.0 / (1.0 + exp(-yhat));
-              //std::cout << "Predict: " << predict << std::endl;
 
               // Cal Error and Gradient
               double error = (sample.label > 0 ? 1 : 0) - predict;
@@ -294,12 +340,13 @@ int main(int argc, char** argv)
 
               for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
                   gradient += it.value() * error;
-              //std::cout << "Error: " << error << " Gradient: " << gradient << std::endl;
+
               // Update
               vals.at(0) += learning_rate * gradient;
               for (int i = 1 ; i < keys.size(); i++ )
                   vals.at(i) += learning_rate * gradient;
 
+              // Transient Straggler
               if (FLAGS_with_injected_straggler > 0.0 ) {
                 double r = (double)rand() / RAND_MAX;
                 if (r < FLAGS_with_injected_straggler) {
@@ -308,12 +355,26 @@ int main(int argc, char** argv)
                   std::this_thread::sleep_for(std::chrono::milliseconds(int(delay)));
                 }
               }
+
+              // Permanent Straggler
+              if (info.worker_id == 3)
+              {
+                  std::this_thread::sleep_for(std::chrono::milliseconds(int(FLAGS_with_injected_straggler_delay)));
+              }
+
+              // Simple Transient Straggler
+              if (info.worker_id == 1 && i >= 50 && i < 75)
+              {
+                  std::this_thread::sleep_for(std::chrono::milliseconds(int(FLAGS_with_injected_straggler_delay)));
+              }
+
               // Push
               table.Add(keys, vals);
               
 #ifdef BENCHMARK
               benchmark_batch.stop_measure();
-              LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << benchmark_iter_process_time.stop_measure();
+              // LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << benchmark_iter_process_time.stop_measure();
+              benchmark_iter_process_time.stop_measure();
 #endif
 
             }
@@ -325,7 +386,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
             benchmark_iteration.stop_measure();
 
-            info.reportTime(benchmark_iter_process_time.mean());
+            info.reportTime(benchmark_iter_process_time.mean() * batch_size); // TODO: Any function to get total time?
 
             if ((i % (FLAGS_n_iters/10)) == 0)
             {              
@@ -343,11 +404,6 @@ int main(int argc, char** argv)
         LOG(INFO) << "Finished iteration...  [" << info.worker_id  << "]";
 
         // Test
-
-
-        //std::cout << "Printing out first 10 coeff:" << std::endl;
-        //for (int i=0; i<10; i++) std::cout << vals.at(i) << ' ';
-        //std::cout << std::endl;
 
         int correct = 0;
         for (Sample sample : test_samples)
