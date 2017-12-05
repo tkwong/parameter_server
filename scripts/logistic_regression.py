@@ -15,8 +15,8 @@ from os.path import dirname, join
 # 4:worker5:37542
 #
 #hostfile = "machinefiles/local"
-#hostfile = "machinefiles/5node"
-hostfile = "machinefiles/2node"
+hostfile = "machinefiles/5node"
+#hostfile = "machinefiles/2node"
 progfile = "build/LogisticRegression"
 
 script_path = os.path.realpath(__file__)
@@ -28,11 +28,15 @@ print "hostfile_path:%s, prog_path:%s" % (hostfile_path, prog_path)
 
 params = {
     "config_file":hostfile_path,
-    #"input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
-    #"n_features": 1000000,
-    "input": "hdfs://proj10:9000/datasets/classification/a9/",
-    "n_features": 123,
-    "n_workers_per_node": 1
+    "input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
+    "n_features": 1000000,
+    "n_iters": 100,
+    "batch_size": 10,
+    #"input": "hdfs://proj10:9000/datasets/classification/a9/",
+    #n_features": 123,
+    "n_workers_per_node": 5,
+    "with_injected_straggler": 0.05,
+    "with_injected_straggler_delay": 1000
 }
 
 ssh_cmd = (
@@ -59,11 +63,11 @@ with open(hostfile, "r") as f:
 
   for [node_id, host, port] in hostlist:
     print "node_id:%s, host:%s, port:%s" %(node_id, host, port)
-    cmd = ssh_cmd + host + " "
+    cmd = ssh_cmd + host + " \""
     # cmd += clear_cmd
     cmd += "env " + env_params + " " + prog_path
     cmd += " --my_id="+node_id
     cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
-    cmd += " &"
+    cmd += " >> " + proj_dir + "/ps.log 2>&1 \" &"
     print cmd
     os.system(cmd)
