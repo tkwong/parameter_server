@@ -28,6 +28,9 @@ class UserThread : public AbstractWorkerThread
         virtual void OnReceive(Message& msg) override {}
         virtual void Main() override
         {
+          if (info.thread_id == info.scheduler_id)
+            task.RunScheduler(info);
+          else
             task.RunLambda(info);
         }
 

@@ -16,6 +16,9 @@ struct WorkerAlloc {
 
 class MLTask {
  public:
+  MLTask() {
+    
+  }
   /**
    * Set the UDF
    *
@@ -28,7 +31,10 @@ class MLTask {
    * @param info    the context for the thread running UDF
    */
   void RunLambda(const Info& info) const { func_(info); }
-
+  
+  void SetScheduler(const std::function<void(const Info&)>& func) { func_scheduler_ = func; }
+  void RunScheduler(const Info& info) const { func_scheduler_(info); }
+  
   /**
    * Set worker allocation info
    *
@@ -60,6 +66,7 @@ class MLTask {
   std::function<void(const Info&)> func_;  // UDF
   std::vector<WorkerAlloc> worker_alloc_;  // the allocation of worker to the current task
   std::vector<uint32_t> tables_;           // model ids
+  std::function<void(const Info&)> func_scheduler_; // scheduler function
 };
 
 }  // namespace csci5570

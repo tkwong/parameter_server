@@ -166,80 +166,77 @@ int main(int argc, char** argv)
     // task.SetWorkerAlloc({{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}});
     task.SetWorkerAlloc(worker_alloc);
     task.SetTables({table_id});
+    task.SetScheduler([table_id, node_samples, test_samples](const Info& info){
+      LOG(INFO) << "Worker id: " << info.worker_id << " is scheduler";
 
+      std::vector<int> workloads(info.thread_ids.size(), FLAGS_batch_size);
+      info.workloadTable->Add(info.thread_ids, workloads);
+
+      for (int i = 0; i < FLAGS_n_iters; i++)
+      {
+          LOG(INFO) << "===== Iteration " << i << " =====";
+
+          info.timeTable->Clock();
+          std::vector<double> times;
+          info.timeTable->Get(info.thread_ids, &times);
+
+          std::stringstream tstream;
+          tstream << std::endl;
+          tstream << "-------------- TimeTable ---------------" << std::endl;
+          for (int j = 0; j < info.thread_ids.size(); j++)
+              tstream << "| Thread id: " << info.thread_ids[j] << " | Iter time: "
+                      << std::setw(7) << times[j] << " |" << std::endl;
+          tstream << "----------------------------------------" << std::endl;
+          LOG(INFO) << tstream.str();
+
+          // Scheduling algorithm
+          if (i % 6 == 0)
+          {
+              double min_time = *std::min_element(times.begin(), times.end());
+              int workload_buffer = 0, count = 0;
+
+              std::multimap<double, uint32_t> time2thread;
+              std::map<uint32_t, int> thread2index;
+
+              for (int j = 0; j < info.thread_ids.size(); j++)
+              {
+                  if (times[j] > min_time * 1.5)
+                  {
+                      workload_buffer += round(workloads[j] * 0.2);
+                      workloads[j] = round(workloads[j] * 0.8);
+                  }
+                  else count += 1;
+
+                  time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
+                  thread2index.insert(std::make_pair(info.thread_ids[j], j));
+              }
+
+              for (auto pair : time2thread)
+              {
+                  workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
+                  workload_buffer -= round(workload_buffer / double(count));
+                  count -= 1;
+                  if (workload_buffer < 1) break;
+              }
+
+              info.workloadTable->Add(info.thread_ids, workloads); 
+          }
+
+          std::stringstream wstream;
+          wstream << std::endl;
+          wstream << "------------ WorkloadTable ------------" << std::endl;
+          for (int j = 0; j < info.thread_ids.size(); j++)
+              wstream << "| Thread id: " << info.thread_ids[j] << " | Batch size: "
+                      << std::setw(5) << workloads[j] << " |" << std::endl;
+          wstream << "---------------------------------------" << std::endl;
+          LOG(INFO) << wstream.str();
+      }
+
+      LOG(INFO) << "Scheduler terminating";
+      return;
+    });
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
-        // Scheduler task
-        if (info.thread_id == info.scheduler_id)
-        {
-            LOG(INFO) << "Worker id: " << info.worker_id << " is scheduler";
-
-            std::vector<int> workloads(info.thread_ids.size(), FLAGS_batch_size);
-            info.workloadTable->Add(info.thread_ids, workloads);
-
-            for (int i = 0; i < FLAGS_n_iters; i++)
-            {
-                LOG(INFO) << "===== Iteration " << i << " =====";
-
-                info.timeTable->Clock();
-                std::vector<double> times;
-                info.timeTable->Get(info.thread_ids, &times);
-
-                std::stringstream tstream;
-                tstream << std::endl;
-                tstream << "-------------- TimeTable ---------------" << std::endl;
-                for (int j = 0; j < info.thread_ids.size(); j++)
-                    tstream << "| Thread id: " << info.thread_ids[j] << " | Iter time: "
-                            << std::setw(7) << times[j] << " |" << std::endl;
-                tstream << "----------------------------------------" << std::endl;
-                LOG(INFO) << tstream.str();
-
-                // Scheduling algorithm
-                if (i % 6 == 0)
-                {
-                    double min_time = *std::min_element(times.begin(), times.end());
-                    int workload_buffer = 0, count = 0;
-
-                    std::multimap<double, uint32_t> time2thread;
-                    std::map<uint32_t, int> thread2index;
-
-                    for (int j = 0; j < info.thread_ids.size(); j++)
-                    {
-                        if (times[j] > min_time * 1.5)
-                        {
-                            workload_buffer += round(workloads[j] * 0.2);
-                            workloads[j] = round(workloads[j] * 0.8);
-                        }
-                        else count += 1;
-
-                        time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
-                        thread2index.insert(std::make_pair(info.thread_ids[j], j));
-                    }
-
-                    for (auto pair : time2thread)
-                    {
-                        workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
-                        workload_buffer -= round(workload_buffer / double(count));
-                        count -= 1;
-                        if (workload_buffer < 1) break;
-                    }
-
-                    info.workloadTable->Add(info.thread_ids, workloads); 
-                }
-
-                std::stringstream wstream;
-                wstream << std::endl;
-                wstream << "------------ WorkloadTable ------------" << std::endl;
-                for (int j = 0; j < info.thread_ids.size(); j++)
-                    wstream << "| Thread id: " << info.thread_ids[j] << " | Batch size: "
-                            << std::setw(5) << workloads[j] << " |" << std::endl;
-                wstream << "---------------------------------------" << std::endl;
-                LOG(INFO) << wstream.str();
-            }
-
-            LOG(INFO) << "Scheduler terminating";
-            return;
-        }
 #ifdef BENCHMARK
         auto benchmark = Benchmark<>::measure([&](const Info& info) {
 #endif
