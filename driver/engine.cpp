@@ -192,7 +192,9 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
         LOG(INFO) << "Reply message received";
     }
 
+LOG(INFO) << "Starting Worker Thread";
     worker_thread_.get()->Start();
+LOG(INFO) << "Started Worker Thread";
 }
 
 void Engine::Run(const MLTask& task) {
@@ -218,8 +220,12 @@ void Engine::Run(const MLTask& task) {
     
     // Init tables
     for (uint32_t table_id : task.GetTables())
+    {
         InitTable(table_id, *threadIds); // Do not init scheduler
-    Barrier();
+        Barrier();
+    }
+
+    LOG(INFO) << "Task Tables initialized";
 
     // Create and Initialize TimeTable and WorkloadTable
     std::vector<third_party::Range> ranges;
@@ -234,12 +240,14 @@ void Engine::Run(const MLTask& task) {
         ModelType::BSP, StorageType::Map);
     InitTable(timeTable_id, allThreadIds); // Init all worker and scheduler
     Barrier();
+    LOG(INFO) << "TimeTable initialized";
 
     auto* work_pm = new RangePartitionManager(id_mapper_.get()->GetAllServerThreads(), ranges);
     auto workloadTable_id = CreateTable<int>(std::unique_ptr<AbstractPartitionManager>(work_pm),
         ModelType::ASP, StorageType::Map);
     InitTable(workloadTable_id, allThreadIds); // Init all worker and scheduler
     Barrier();
+    LOG(INFO) << "WorkloadTable initialized";
     
     // Spawn user threads if server == workers
     if (spec.HasLocalWorkers(node_.id)) {

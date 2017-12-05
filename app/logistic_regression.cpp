@@ -44,6 +44,7 @@ DEFINE_double(alpha, 0.0001, "learning rate");
 
 DEFINE_double(with_injected_straggler, 0.0, "injected straggler with its probability");
 DEFINE_double(with_injected_straggler_delay, 100, "injected straggler delay in ms");
+DEFINE_int32(get_updated_workload_rate, 5, "the rate (in iterations) to update the workload size from table.");
 
 // DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
@@ -168,7 +169,6 @@ int main(int argc, char** argv)
     task.SetTables({table_id});
     task.SetScheduler([table_id, node_samples, test_samples](const Info& info){
       // Tunning Parameters
-      const int    update_rate        = 5;   // iterations
       const double update_threshold   = 1.5; // min-max time diff in factor
       const double rebalance_workload = 0.2; // percentage
 
@@ -195,7 +195,7 @@ int main(int argc, char** argv)
           LOG(INFO) << tstream.str();
 
           // Scheduling algorithm
-          if (i % (update_rate + 1) == 0)
+          if (i % (FLAGS_get_updated_workload_rate + 1) == 0)
           {
               double min_time = *std::min_element(times.begin(), times.end());
               int workload_buffer = 0, count = 0;
@@ -270,12 +270,12 @@ int main(int argc, char** argv)
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         {
-            if (i % update_rate == 0)
+            if (i % FLAGS_get_updated_workload_rate == 0)
             {
                 batch_size = info.getWorkload();
                 LOG(INFO) << "Worker " << info.worker_id
                           << " workload for the next "
-                          << update_rate
+                          << FLAGS_get_updated_workload_rate
                           << "  iterations is "
                           << batch_size ;
             }
@@ -390,7 +390,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
             benchmark_iteration.stop_measure();
 
-            info.reportTime(benchmark_iter_process_time.mean() * batch_size); // TODO: Any function to get total time?
+            info.reportTime(benchmark_iter_process_time.last(batch_size));
 
             if ((i % (FLAGS_n_iters/10)) == 0)
             {              
