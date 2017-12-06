@@ -115,6 +115,7 @@ void Mailbox::Bind(const Node& node) {
 }
 
 void Mailbox::RegisterQueue(uint32_t queue_id, ThreadsafeQueue<Message>* const queue) {
+  std::lock_guard<std::mutex> lk(mu_);
   CHECK(queue_map_.find(queue_id) == queue_map_.end());
   queue_map_.insert({queue_id, queue});
 }

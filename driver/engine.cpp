@@ -186,15 +186,20 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
         reset_msg.meta.model_id = table_id;
         reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
         sender_.get()->GetMessageQueue()->Push(reset_msg);
-
-        Message reply;
-        worker_thread_.get()->GetWorkQueue()->WaitAndPop(&reply);
-        LOG(INFO) << "Reply message received";
+    }
+    
+    for (auto server_id : id_mapper_.get()->GetAllServerThreads())
+    {
+      Message reply;
+      worker_thread_.get()->GetWorkQueue()->WaitAndPop(&reply);
+      CHECK(reply.meta.flag == Flag::kResetWorkerInModel);
+      CHECK(reply.meta.model_id == table_id);
+      LOG(INFO) << "Reset Message received server_id: " << reply.meta.sender << " for table_id: " << table_id;    
     }
 
-LOG(INFO) << "Starting Worker Thread";
-    worker_thread_.get()->Start();
-LOG(INFO) << "Started Worker Thread";
+    LOG(INFO) << "Starting Worker Thread";
+        worker_thread_.get()->Start();
+    LOG(INFO) << "Started Worker Thread";
 }
 
 void Engine::Run(const MLTask& task) {
