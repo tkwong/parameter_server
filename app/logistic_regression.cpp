@@ -45,6 +45,9 @@ DEFINE_double(alpha, 0.0001, "learning rate");
 DEFINE_double(with_injected_straggler, 0.0, "injected straggler with its probability");
 DEFINE_double(with_injected_straggler_delay, 100, "injected straggler delay in ms");
 DEFINE_int32(get_updated_workload_rate, 5, "the rate (in iterations) to update the workload size from table.");
+DEFINE_bool(activate_scheduler, true, "activate scheduler");
+DEFINE_bool(activate_transient_straggler, true, "activate transient straggler");
+DEFINE_bool(activate_permanent_straggler, true, "activate permanemt straggler");
 
 // DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
@@ -102,7 +105,7 @@ int main(int argc, char** argv)
       }
       LOG(INFO) << "Loaded Node from config file";
         }
-    //
+   
     const Node* my_node;
     for (const auto& node : nodes) {
       if (FLAGS_my_id == node.id) {
@@ -167,7 +170,10 @@ int main(int argc, char** argv)
     // task.SetWorkerAlloc({{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}});
     task.SetWorkerAlloc(worker_alloc);
     task.SetTables({table_id});
-    task.SetScheduler([table_id, node_samples, test_samples](const Info& info){
+
+    // Scheduling Task
+    task.SetScheduler([table_id, node_samples, test_samples](const Info& info)
+    {
       // Tunning Parameters
       const double update_threshold   = 1.5; // min-max time diff in factor
       const double rebalance_workload = 0.2; // percentage
@@ -176,6 +182,13 @@ int main(int argc, char** argv)
 
       std::vector<int> workloads(info.thread_ids.size(), FLAGS_batch_size);
       info.workloadTable->Add(info.thread_ids, workloads);
+
+      if (! FLAGS_activate_scheduler) 
+      {
+          LOG(INFO) << "Scheduler not activated, thread " << info.thread_id 
+                    << " terminating.";
+          return;
+      }
 
       for (int i = 0; i < FLAGS_n_iters; i++)
       {
@@ -192,7 +205,13 @@ int main(int argc, char** argv)
               tstream << "| Thread id: " << info.thread_ids[j] << " | Iter time: "
                       << std::setw(7) << times[j] << " |" << std::endl;
           tstream << "----------------------------------------" << std::endl;
-          LOG(INFO) << tstream.str();
+          // LOG(INFO) << tstream.str();
+
+          // [STAT_TIME]<iteration>,<thread_id>,<process_time>
+          for (int j = 0; j < info.thread_ids.size(); j++)
+              LOG(INFO) << "[STAT_TIME]" << i << "," << info.thread_ids[j] << ","
+                        << times[j];
+
 
           // Scheduling algorithm
           if (i % (FLAGS_get_updated_workload_rate + 1) == 0)
@@ -234,12 +253,18 @@ int main(int argc, char** argv)
               wstream << "| Thread id: " << info.thread_ids[j] << " | Batch size: "
                       << std::setw(5) << workloads[j] << " |" << std::endl;
           wstream << "---------------------------------------" << std::endl;
-          LOG(INFO) << wstream.str();
+          // LOG(INFO) << wstream.str();
+
+          // [STAT_WORKLOAD]<iteration>,<thread_id>,<batch_size>
+          for (int j = 0; j < info.thread_ids.size(); j++)
+              LOG(INFO) << "[STAT_WORKLOAD]" << i << "," << info.thread_ids[j] << ","
+                        << workloads[j];
       }
 
       LOG(INFO) << "Scheduler terminating";
       return;
     });
+
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
 #ifdef BENCHMARK
@@ -270,6 +295,10 @@ int main(int argc, char** argv)
         LOG(INFO) << "Start iteration...  [" << info.worker_id  << "]";
         for (int i = 0 ; i < FLAGS_n_iters; i++ )
         {
+#ifdef BENCHMARK
+            benchmark_iteration.start_measure();
+#endif
+
             if (i % FLAGS_get_updated_workload_rate == 0)
             {
                 batch_size = info.getWorkload();
@@ -279,10 +308,6 @@ int main(int argc, char** argv)
                           << "  iterations is "
                           << batch_size ;
             }
-
-#ifdef BENCHMARK
-            benchmark_iteration.start_measure();
-#endif
 
             // Prepare Sample indices
             std::random_shuffle(indices.begin(), indices.end());
@@ -317,8 +342,9 @@ int main(int argc, char** argv)
               table.Get(keys, &vals);
               
 #ifdef BENCHMARK
-              // LOG(INFO) << "[STAT_GET] " << info.worker_id  << "," << b << "," << benchmark_wait_time.stop_measure();
-              benchmark_wait_time.stop_measure();
+              // [STAT_GET]<iteration>,<thread_id>,<wait_time>
+              LOG(INFO) << "[STAT_GET]" << i << "," << info.thread_id <<  "," << benchmark_wait_time.stop_measure();
+              // benchmark_wait_time.stop_measure();
 #endif
               
               
@@ -361,13 +387,13 @@ int main(int argc, char** argv)
               }
 
               // Permanent Straggler
-              if (info.worker_id == 3)
+              if (FLAGS_activate_permanent_straggler && info.worker_id == 3)
               {
                   std::this_thread::sleep_for(std::chrono::milliseconds(int(FLAGS_with_injected_straggler_delay)));
               }
 
               // Simple Transient Straggler
-              if (info.worker_id == 1 && i >= 50 && i < 75)
+              if (FLAGS_activate_transient_straggler && info.worker_id == 1 && i >= 50 && i < 75)
               {
                   std::this_thread::sleep_for(std::chrono::milliseconds(int(FLAGS_with_injected_straggler_delay)));
               }
@@ -377,8 +403,10 @@ int main(int argc, char** argv)
               
 #ifdef BENCHMARK
               benchmark_batch.stop_measure();
-              // LOG(INFO) << "[STAT_PROCESS] " << info.worker_id  << "," << b << "," << benchmark_iter_process_time.stop_measure();
-              benchmark_iter_process_time.stop_measure();
+
+              // [STAT_PROCESS]<iteration>,<thread_id>,<process_time>
+              LOG(INFO) << "[STAT_PROCESS] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.stop_measure();
+              // benchmark_iter_process_time.stop_measure();
 #endif
 
             }
@@ -388,7 +416,8 @@ int main(int argc, char** argv)
             table.Clock();
 
 #ifdef BENCHMARK
-            benchmark_iteration.stop_measure();
+            // [STAT_ITER]<iteration>,<thread_id>,<iteration_time>
+            LOG(INFO) << "[STAT_ITER]" << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
 
             info.reportTime(benchmark_iter_process_time.last(batch_size));
 
