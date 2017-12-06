@@ -1,14 +1,18 @@
 from collections import defaultdict
+import sys, os.path
 
-with open('ps.log', 'r') as f:
-    #wait_times = []
-    #process_times = []
+if len(sys.argv) < 2 or not os.path.isfile(sys.argv[1]):
+    print "Usage: <log_filename>"
+    exit(0)
+
+with open(sys.argv[1], 'r') as f:
     iter_times = defaultdict(list)
 
     for line in f:
         if "STAT_ITER" not in line: continue
 
-        iter_num, tid, iter_time = map(int, line[line.index("STAT_ITER") + len("STAT_ITER"):].split(','))
+        iter_num, tid, iter_time = map(int, line[line.index("[STAT_ITER]") + len("[STAT_ITER]"):]\
+            .split(','))
         iter_times[tid].append(iter_time)
 
 for tid in iter_times:
