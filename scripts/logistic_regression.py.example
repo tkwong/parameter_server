@@ -31,12 +31,16 @@ params = {
     "input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
     "n_features": 1000000,
     "n_iters": 100,
-    "batch_size": 10,
+    "batch_size": 100,
     #"input": "hdfs://proj10:9000/datasets/classification/a9/",
-    #n_features": 123,
+    #"n_features": 123,
     "n_workers_per_node": 5,
-    "with_injected_straggler": 0.05,
-    "with_injected_straggler_delay": 1000
+    #"with_injected_straggler": 0.05,
+    "with_injected_straggler_delay": 1,
+    "get_updated_workload_rate": 1,
+    "activate_scheduler": True,
+    "activate_transient_straggler": True,
+    "activate_permanent_straggler": True
 }
 
 ssh_cmd = (
@@ -47,8 +51,8 @@ ssh_cmd = (
 
 env_params = (
   "GLOG_logtostderr=true "
-  "GLOG_v=-1 "
-  "GLOG_minloglevel=0 "
+#  "GLOG_v=-1 "
+#  "GLOG_minloglevel=0 "
   # this is to enable hdfs short-circuit read (disable the warning info)
   # change this path accordingly when we use other cluster
   # the current setting is for proj5-10
@@ -72,6 +76,7 @@ with open(hostfile, "r") as f:
     cmd += "env " + env_params + " " + prog_path
     cmd += " --my_id="+node_id
     cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
-    cmd += " >> " + proj_dir + "/ps.log 2>&1 \" &"
+    cmd += " >> " + proj_dir + "/logs/" + node_id +".log 2>&1 \" &"
+    #cmd += " \" &"
     print cmd
     os.system(cmd)
