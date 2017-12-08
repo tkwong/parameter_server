@@ -24,3 +24,6 @@ latex/*
 
 # ignore scripts
 scripts/logistic_regression.py
+
+# ignore log
+logs/*

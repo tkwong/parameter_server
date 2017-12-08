@@ -202,7 +202,7 @@ int main(int argc, char** argv)
 
           // [STAT_TIME]<iteration>,<thread_id>,<process_time>
           for (int j = 0; j < info.thread_ids.size(); j++)
-              LOG(INFO) << "[STAT_TIME]" << i << "," << info.thread_ids[j] << ","
+              VLOG(2) << "[STAT_TIME] " << i << "," << info.thread_ids[j] << ","
                         << times[j];
 
 
@@ -250,7 +250,7 @@ int main(int argc, char** argv)
 
           // [STAT_WORKLOAD]<iteration>,<thread_id>,<batch_size>
           for (int j = 0; j < info.thread_ids.size(); j++)
-              LOG(INFO) << "[STAT_WORKLOAD]" << i << "," << info.thread_ids[j] << ","
+              VLOG(2) << "[STAT_WORK]" << i << "," << info.thread_ids[j] << ","
                         << workloads[j];
       }
 
@@ -261,7 +261,8 @@ int main(int argc, char** argv)
     task.SetLambda([table_id, node_samples, test_samples](const Info& info)
     {
 #ifdef BENCHMARK
-        auto benchmark = Benchmark<>::measure([&](const Info& info) {
+        Benchmark<> benchmark_woker_time;
+        benchmark_woker_time.start_measure();
 #endif
 
         LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
@@ -336,8 +337,8 @@ int main(int argc, char** argv)
               
 #ifdef BENCHMARK
               // [STAT_GET]<iteration>,<thread_id>,<wait_time>
-              LOG(INFO) << "[STAT_GET]" << i << "," << info.thread_id <<  "," << benchmark_wait_time.stop_measure();
-              // benchmark_wait_time.stop_measure();
+              benchmark_wait_time.stop_measure();
+              VLOG(2) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
 #endif
               
               
@@ -398,8 +399,9 @@ int main(int argc, char** argv)
               benchmark_batch.stop_measure();
 
               // [STAT_PROCESS]<iteration>,<thread_id>,<process_time>
-              LOG(INFO) << "[STAT_PROCESS] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.stop_measure();
-              // benchmark_iter_process_time.stop_measure();
+              benchmark_iter_process_time.stop_measure();
+              VLOG(2) << "[STAT_PROC] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.last();
+
 #endif
 
             }
@@ -412,25 +414,25 @@ int main(int argc, char** argv)
             info.reportTime(benchmark_iter_process_time.last(batch_size));
 
             // [STAT_ITER]<iteration>,<thread_id>,<iteration_time>
-            LOG(INFO) << "[STAT_ITER]" << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
+            VLOG(2) << "[STAT_ITER] " << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
 
-            if ((i % (FLAGS_n_iters/10)) == 0)
-            {              
-              LOG(INFO) << "Worker " << info.worker_id  << " for " << i << " Iterations. "
-                                << "iteration: "        << benchmark_iteration.mean()/1000. << " ms "
-                                << "batch: "            << benchmark_batch.mean()/1000. << " ms "
-                                << "process_time: "     << benchmark_iter_process_time.mean()/1000. << " ms "
-                                << "wait_time: "        << benchmark_wait_time.mean()/1000. << " ms ";
-                                  
-            }
+            LOG_EVERY_N(INFO, (FLAGS_n_iters/10)) << "Worker " << info.worker_id  << " for " << i << " Iterations. "
+                              << "iteration: "        << benchmark_iteration.mean()/1000. << " ms "
+                              << "batch: "            << benchmark_batch.mean()/1000. << " ms "
+                              << "process_time: "     << benchmark_iter_process_time.mean()/1000. << " ms "
+                              << "wait_time: "        << benchmark_wait_time.mean()/1000. << " ms ";
+              
 #endif
+            
         }
 
-
         LOG(INFO) << "Finished iteration...  [" << info.worker_id  << "]";
-
+        
+#ifdef BENCHMARK
+        benchmark_woker_time.stop_measure();
+        LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark_woker_time.sum()/1000. << "ms";
+#endif
         // Test
-
         int correct = 0;
         for (Sample sample : test_samples)
         {
@@ -455,9 +457,6 @@ int main(int argc, char** argv)
         LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size()
                   << " " << float(correct)/test_samples.size()*100 << " percent";
 
-#ifdef BENCHMARK
-        }, info); LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark/1000. << "ms";
-#endif
     });
 
     engine->Run(task);
