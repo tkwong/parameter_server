@@ -419,7 +419,7 @@ int main(int argc, char** argv)
 
 #ifdef BENCHMARK
             // [STAT_ITER]<iteration>,<thread_id>,<iteration_time>
-            VLOG(2) << "[STAT_ITER]" << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
+            VLOG(2) << "[STAT_ITER] " << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
 
             info.reportTime(benchmark_iter_process_time.last(batch_size));
 
