@@ -183,13 +183,6 @@ int main(int argc, char** argv)
       std::vector<int> workloads(info.thread_ids.size(), FLAGS_batch_size);
       info.workloadTable->Add(info.thread_ids, workloads);
 
-      if (! FLAGS_activate_scheduler) 
-      {
-          LOG(INFO) << "Scheduler not activated, thread " << info.thread_id 
-                    << " terminating.";
-          return;
-      }
-
       for (int i = 0; i < FLAGS_n_iters; i++)
       {
           LOG(INFO) << "===== Iteration " << i << " =====";
@@ -214,7 +207,7 @@ int main(int argc, char** argv)
 
 
           // Scheduling algorithm
-          if (i % (FLAGS_get_updated_workload_rate + 1) == 0)
+          if (FLAGS_activate_scheduler && i % (FLAGS_get_updated_workload_rate + 1) == 0)
           {
               double min_time = *std::min_element(times.begin(), times.end());
               int workload_buffer = 0, count = 0;
@@ -416,10 +409,10 @@ int main(int argc, char** argv)
             table.Clock();
 
 #ifdef BENCHMARK
+            info.reportTime(benchmark_iter_process_time.last(batch_size));
+
             // [STAT_ITER]<iteration>,<thread_id>,<iteration_time>
             LOG(INFO) << "[STAT_ITER]" << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
-
-            info.reportTime(benchmark_iter_process_time.last(batch_size));
 
             if ((i % (FLAGS_n_iters/10)) == 0)
             {              
