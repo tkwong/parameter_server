@@ -44,7 +44,7 @@ DEFINE_double(lambda, 0.0001, "lambda");
 DEFINE_double(learning_rate, 2, "learning rate");
 
 DEFINE_double(with_injected_straggler, 0.0, "injected straggler with its probability");
-DEFINE_double(with_injected_straggler_delay, 100, "injected straggler delay in ms");
+DEFINE_double(with_injected_straggler_delay_percent, 100, "injected straggler delay in %");
 DEFINE_int32(get_updated_workload_rate, 5, "the rate (in iterations) to update the workload size from table.");
 DEFINE_bool(activate_scheduler, false, "activate scheduler");
 DEFINE_bool(activate_transient_straggler, false, "activate transient straggler");
@@ -255,7 +255,7 @@ int main(int argc, char** argv)
 
           // [STAT_WORKLOAD]<iteration>,<thread_id>,<batch_size>
           for (int j = 0; j < info.thread_ids.size(); j++)
-              VLOG(2) << "[STAT_WORK]" << i << "," << info.thread_ids[j] << ","
+              VLOG(2) << "[STAT_WORK] " << i << "," << info.thread_ids[j] << ","
                         << workloads[j];
       }
 
@@ -312,7 +312,7 @@ int main(int argc, char** argv)
             // Prepare Sample indices
             std::random_shuffle(indices.begin(), indices.end());
 
-            // LOG(INFO) << "Start batch "<< FLAGS_batch_size << "...  [" << info.worker_id  << "]";
+            LOG(INFO) << "Running batch "<< batch_size << "...  [" << info.worker_id  << "]";
             // Pick a sample randomly from sample indices
             
             
@@ -350,6 +350,8 @@ int main(int argc, char** argv)
               
 #ifdef BENCHMARK
               benchmark_iter_process_time.start_measure();
+              Benchmark <> actual_process_timer_;
+              actual_process_timer_.start_measure();
 #endif
               // DLOG(INFO) << "vals.size(): " << vals.size();
               CHECK_EQ(keys.size(), vals.size());
@@ -390,11 +392,13 @@ int main(int argc, char** argv)
               //for (int i = 1 ; i < keys.size(); i++ )
               //    vals.at(i) += learning_rate * gradient;
 
+              actual_process_timer_.stop_measure();
+
               // Transient Straggler
               if (FLAGS_with_injected_straggler > 0.0 ) {
                 double r = (double)rand() / RAND_MAX;
                 if (r < FLAGS_with_injected_straggler) {
-                  double delay = FLAGS_with_injected_straggler_delay;
+                  double delay = actual_process_timer_.last() * (FLAGS_with_injected_straggler_delay_percent / 100);
                   LOG(INFO) << "[" << info.worker_id  << "] injecting straggler for " << int(delay) << " ms ... [" << r << "]";
                   std::this_thread::sleep_for(std::chrono::milliseconds(int(delay)));
                 }
@@ -403,13 +407,15 @@ int main(int argc, char** argv)
               // Permanent Straggler
               if (FLAGS_activate_permanent_straggler && info.worker_id == 3)
               {
-                  std::this_thread::sleep_for(std::chrono::milliseconds(int(FLAGS_with_injected_straggler_delay)));
+                  double delay = actual_process_timer_.last() * (FLAGS_with_injected_straggler_delay_percent / 100);
+                  std::this_thread::sleep_for(std::chrono::milliseconds(int(delay)));
               }
 
               // Simple Transient Straggler
               if (FLAGS_activate_transient_straggler && info.worker_id == 1 && i >= 50 && i < 75)
               {
-                  std::this_thread::sleep_for(std::chrono::milliseconds(int(FLAGS_with_injected_straggler_delay)));
+                  double delay = actual_process_timer_.last() * (FLAGS_with_injected_straggler_delay_percent / 100);
+                  std::this_thread::sleep_for(std::chrono::milliseconds(int(delay)));
               }
 
               // Push
