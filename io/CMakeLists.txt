@@ -7,6 +7,7 @@ file(GLOB io-src-files
 if(LIBHDFS3_FOUND)
     file(GLOB io-src-hdfs-files
         hdfs_assigner.cpp
+        hdfs_manager.cpp
         hdfs_file_splitter.cpp
         )
     list(APPEND io-src-files ${io-src-hdfs-files})

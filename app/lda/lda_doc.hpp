@@ -92,7 +92,7 @@ class LDADoc {
         }
   
         inline void SetTopic(int new_topic) {
-            assert(curr_< doc_.token_topics_.size());
+            CHECK(curr_< doc_.token_topics_.size());
             doc_.token_topics_[curr_] = new_topic;
         }
   

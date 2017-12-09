@@ -36,7 +36,7 @@ class LDAStats {
     double GetLogGammaBetaOffset(int val);
 
     double LogGamma(double xx) {
-      assert(xx !=0 );
+      CHECK(xx !=0 );
       int j;
       double x, y, tmp1, ser;
       y = xx;

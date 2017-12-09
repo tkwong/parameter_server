@@ -1,7 +1,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include <gperftools/profiler.h>
+// #include <gperftools/profiler.h>
 
 #include <algorithm>
 #include <chrono>
@@ -34,8 +34,6 @@ DEFINE_string(config_file, "", "The config file path");
 DEFINE_string(hdfs_namenode, "", "The hdfs namenode hostname");
 DEFINE_string(input, "", "The hdfs input url");
 DEFINE_int32(hdfs_namenode_port, -1, "The hdfs namenode port");
-DEFINE_int32(kSpeculation, 1, "speculation");
-DEFINE_string(kSparseSSPRecorderType, "", "None/Map/Vector");
 DEFINE_int32(num_servers_per_node, 1, "num_servers_per_node");
 DEFINE_int32(num_workers_per_node, 1, "num_workers_per_node");
 DEFINE_int32(num_iters, 100, "number of iters");
@@ -51,7 +49,7 @@ DEFINE_int32(max_voc_id, -1, "max_voc_id");
 DEFINE_int32(num_docs, -1, "num_docs");
 DEFINE_string(result_write_path, "result.txt", "result write path");
 DEFINE_int32(num_epochs, 1, "number of epochs");
-DEFINE_int32(compute_llh, 0, "compute log-likehood");
+DEFINE_int32(compute_loglikehood, 0, "compute log-likehood");
 DEFINE_int32(num_process, 1, "number of processes");
 DEFINE_int32(num_batches, 100, "number of batches");
 DEFINE_int32(max_vocs_each_pull, 10000, "max vocs in each poll");
@@ -97,7 +95,6 @@ namespace csci5570 {
                 lda_table.Add(lda_key, params);
         }
 
-        //void batch_training_by_chunk(std::vector<csci5570::LDADoc>& corpus, int LDATableId, int num_total_workers, int num_topics, int max_voc_id, int num_iterations,
         void batch_training_by_chunk(std::vector<csci5570::LDADoc>& corpus, KVClientTable<float>& lda_table, KVClientTable<float>& lda_stat_table, int num_total_workers, int num_topics, int max_voc_id, int num_iterations,
                         float alpha, float beta, const Info& info ) {
                 // 1. Find local vocabs and only Push and Pull those
@@ -109,7 +106,7 @@ namespace csci5570 {
                 //    Same as setting num_iters_per_work_unit = num_clocks_per_work_unit.
 
                 /*  difine the constants used int this function*/
-                int need_compute_llh = FLAGS_compute_llh;
+                int need_compute_llh = FLAGS_compute_loglikehood;
                 int num_epochs = FLAGS_num_epochs;
                 int num_process = FLAGS_num_process;
                 int num_batches = FLAGS_num_batches;
@@ -153,11 +150,9 @@ namespace csci5570 {
                 //For multiple epoch task only (SPMT for example)
                 //bool is_last_epoch = (Context::get_param("kType") == "PS") ? true : ((info.get_current_epoch() + 1) % num_process == 0);
 
-                //std::vector<std::vector<float>> word_topic_count;
-                //std::vector<std::vector<float>> word_topic_updates;
                 std::vector<float> word_topic_count;
                 std::vector<float> word_topic_updates;
-                //std::map<int, int> find_start_idx; // map the word to the start index of in batch_voc_keys and word_topic_count
+                
                 std::map<int, int> find_start_word_topic_idx; // map the word to the start index of in batch_voc_topic_keys and word_topic_count
 
                 for (int i=1; i<=num_iterations; i++) {
@@ -307,7 +302,7 @@ namespace csci5570 {
                                         //// Doc sampler is responsible for
                                         //// 1. Compute the updates stored it in word_topic_updates;
                                         //// 2. Sample new topics for each word in corpus
-                                        //LOG(INFO) << "Start sampling";
+                                        LOG(INFO) << "Start sampling";
                                         auto start_sample_time = std::chrono::steady_clock::now();
                                         DocSampler doc_sampler(num_topics, max_voc_id, alpha, beta);
                                         for (int k = batch_begin[j]; k < batch_end[j]; k++) {
@@ -420,6 +415,7 @@ namespace csci5570 {
                                 mailbox_time = mailbox_end_time - mailbox_start_time;
 
                         } // end of compute llh
+                        
                         auto end_iter_time = std::chrono::steady_clock::now();
                         if (info.worker_id % FLAGS_num_workers_per_node == 0)
                         {
@@ -484,8 +480,8 @@ namespace csci5570 {
                                         LOG(INFO)<<a;
                                 }
                                 // clear the llh and start next iteration
-                                //ts = kvworker->Push(lda_stat_table, stat_keys, llh_and_time, true);
-                                //kvworker->Wait(lda_stat_table, ts);
+                                // ts = kvworker->Push(lda_stat_table, stat_keys, llh_and_time, true);
+
                                 lda_stat_table.Add(stat_keys, llh_and_time);
                                 lda_stat_table.Clock();
                                 ofs.close();
@@ -608,7 +604,9 @@ namespace csci5570 {
                                         LDADoc new_doc;
                                         // parse doc_id pair1 pair2 ...
                                         boost::char_separator<char> sep(" \n");
-                                        boost::tokenizer<boost::char_separator<char>> tok(record, sep);
+                                        // boost::tokenizer<boost::char_separator<char>> tok(record, sep);
+                                        std::string input("a,b,c");
+                                        boost::tokenizer< boost::char_separator<char> > tok(input);
                                         boost::tokenizer<boost::char_separator<char>>::iterator iter = tok.begin();
 
                                         // For Debugging
@@ -664,13 +662,12 @@ namespace csci5570 {
 
                 //  3. Create Word-Topic Table
 
-                const int LDATableId = 0;
                 std::vector<third_party::Range> range;
-                int num_topics = FLAGS_num_topics;
-                int max_voc_id = FLAGS_max_voc_id;
-                int lda_table_dim = ( max_voc_id + 1 ) * num_topics;
-                int num_total_workers = nodes.size() * FLAGS_num_workers_per_node;
-                int num_total_servers = nodes.size() * FLAGS_num_servers_per_node;
+                uint64_t num_topics = FLAGS_num_topics;
+                uint64_t max_voc_id = FLAGS_max_voc_id;
+                uint64_t lda_table_dim = ( max_voc_id + 1 ) * num_topics;
+                uint64_t num_total_workers = nodes.size() * FLAGS_num_workers_per_node;
+                uint64_t num_total_servers = nodes.size() * FLAGS_num_servers_per_node;
                 LOG(INFO) << "num_total_servers:" << num_total_servers
                         << "\tnodes.size():" << nodes.size() << "\tFLAGS_num_servers_per_node:" << FLAGS_num_servers_per_node;
 
@@ -699,10 +696,9 @@ namespace csci5570 {
                         LOG(FATAL) << "storage type not specified";
                         CHECK(false) << "storage type error: " << FLAGS_kStorageType;
                 }
-                LDATableId = engine.CreateTable<float>(model_type, storage_type, FLAGS_kStaleness);
+                auto LDATableId = engine.CreateTable<float>(model_type, storage_type, FLAGS_kStaleness);
 
-                // 3.1 Create LDA Stat Table
-                const int LDAStatTableId = 1;
+                // // 3.1 Create LDA Stat Table
                 std::vector<third_party::Range> stat_table_range;
                 int lda_stat_table_dim = FLAGS_num_iters * 9;
                 for (int i = 0; i < num_total_servers - 1; ++ i) {
@@ -711,7 +707,7 @@ namespace csci5570 {
                 stat_table_range.push_back({(uint64_t)(lda_stat_table_dim / num_total_servers * (num_total_servers - 1)), (uint64_t)lda_stat_table_dim});
                 //stat_table_range.push_back({0, 9}); //###
                 //stat_table_range.push_back({9, 18}); //###
-                LDAStatTableId = engine.CreateTable<float>(ModelType::ASP, StorageType::Vector, FLAGS_kStaleness);
+                auto LDAStatTableId = engine.CreateTable<float>(ModelType::ASP, StorageType::Vector);
 
 
                 engine.Barrier();
@@ -733,7 +729,7 @@ namespace csci5570 {
                                 LOG(INFO) << info.DebugString();
                                 auto start_epoch_timer = std::chrono::steady_clock::now();
                                 int worker_id = info.worker_id;
-                                int local_id = info.local_id;
+                                int local_id = info.thread_id;
                                 int local_num_doc = corpus.size();
                                 int num_workers_per_node = FLAGS_num_workers_per_node;
                                 int local_corpus_batch_size = local_num_doc / num_workers_per_node;
@@ -742,8 +738,8 @@ namespace csci5570 {
 
                                 if (first_doc_idx >= local_num_doc)
                                 {
-                                LOG(INFO) << info.DebugString() << ": no document can be assigned to this node. End.";
-                                return;
+                                  LOG(INFO) << info.DebugString() << ": no document can be assigned to this node. End.";
+                                  return;
                                 }
                                 //int last_doc_idx = (local_id + 1 == num_workers_per_node) ? (num_doc - 1) : ((local_worker_id + 1) * local_corpus_batch_size - 1);
 
@@ -768,7 +764,7 @@ namespace csci5570 {
                                         ofs.open(resFile, std::ofstream::out | std::ofstream::app);
                                         ofs << FLAGS_input << " num_topics:"<< FLAGS_num_topics <<" num_workers_per_node:"<< FLAGS_num_workers_per_node << " num_total_workers: " << num_total_workers;
                                         ofs <<" kStaleness:" << FLAGS_kStaleness;
-                                        ofs << "\nkSpeculation:" << FLAGS_kSpeculation << " kModelType:" << FLAGS_kModelType << " kStorageType:" << FLAGS_kStorageType << "\n";
+                                        ofs << "\nkModelType:" << FLAGS_kModelType << " kStorageType:" << FLAGS_kStorageType << "\n";
                                         ofs << " iter | pull_t | push_t | samplet | P+S+S | mailboxt | llh_time | llh\n";
                                         ofs.close();
                                 }
@@ -778,7 +774,9 @@ namespace csci5570 {
                                 float beta = FLAGS_beta;
                                 float num_iterations = FLAGS_num_iters;
                                 auto lda_table = info.CreateKVClientTable<float>(LDATableId);
+                                
                                 auto lda_stat_table = info.CreateKVClientTable<float>(LDAStatTableId);
+                                
                                 batch_training_by_chunk(local_corpus_by_worker, lda_table, lda_stat_table, num_total_workers, num_topics, max_voc_id, num_iterations, alpha, beta, info);
 
                                 //------------------------------------------------
@@ -796,6 +794,7 @@ namespace csci5570 {
 
                                 auto end_time = std::chrono::steady_clock::now();
                                 std::chrono::duration<double> duration = end_time - start_time;
+                                
                                 LOG(INFO) << info.DebugString() << "Task Completed! Total_time: " << duration.count() << " seconds";
                                 });
 
@@ -810,9 +809,9 @@ namespace csci5570 {
                         worker_alloc_out.push_back({node.id, (uint32_t)FLAGS_num_workers_per_node});  // each node has num_workers_per_node workers
                 }
                 task_output.SetWorkerAlloc(worker_alloc_out);
-                task_output.SetTables({LDATableId, LDAStatTableId});  // Use word_topic_table: 0
+                task_output.SetTables({LDATableId});  // Use word_topic_table: 0
                 task_output.SetLambda(
-                                [LDATableId, LDAStatTableId]
+                                [LDATableId]
                                 (const Info& info){
                                 if (info.worker_id == 0)
                                 {

@@ -69,12 +69,12 @@ double LDAStats::ComputeOneDocLLH(LDADoc& doc) {
         ++num_words;
     }
     for (int k = 0; k < K_; ++k) {
-        assert(doc_topic_vec[k] >= 0);
+        CHECK(doc_topic_vec[k] >= 0);
         one_doc_llh += GetLogGammaAlphaOffset(doc_topic_vec[k]);
     }
     one_doc_llh -= GetLogGammaAlphaSumOffset(num_words);
-    assert(one_doc_llh <= 0);
-    assert(!isinf(one_doc_llh));
+    CHECK(one_doc_llh <= 0);
+    CHECK(!isinf(one_doc_llh));
     return one_doc_llh;
 }
 
@@ -99,7 +99,7 @@ double LDAStats::ComputeWordLLH(int word_idx_start, int word_idx_end, std::vecto
             word_llh += num_zeros * zero_entry_llh;
         }
     }
-    assert(!isinf(word_llh));
+    CHECK(!isinf(word_llh));
     return word_llh;
 }
 
@@ -122,7 +122,7 @@ double LDAStats::ComputeWordLLH(int word_idx_start, int word_idx_end, std::vecto
             word_llh += num_zeros * zero_entry_llh;
         }
     }
-    assert(!isinf(word_llh));
+    CHECK(!isinf(word_llh));
     return word_llh;
 }
 
@@ -133,7 +133,7 @@ double LDAStats::ComputeWordLLHSummary() {
     double word_llh = log_topic_normalizer_;
     // log(\prod_j (1 / \gamma(n_j^* + W\beta))) term.
     for (int k = 0; k < K_; ++k) {
-        assert(!isinf(word_llh));
+        CHECK(!isinf(word_llh));
         word_llh -= LogGamma(summary_table_[k] + beta_sum_);
     }
     return word_llh;
