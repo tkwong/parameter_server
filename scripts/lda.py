@@ -18,11 +18,11 @@ hostfile = "machinefiles/local"
 #hostfile = "machinefiles/2node"
 # hostfile = "machinefiles/5node"
 # hostfile = "machinefiles/6node"
-progfile = "debug/LDAExample"
+progfile = "build/LDAExample"
 
 script_path = os.path.realpath(__file__)
 proj_dir = dirname(dirname(script_path))
-print "flexps porj_dir:", proj_dir
+print "porj_dir:", proj_dir
 hostfile_path = join(proj_dir, hostfile)
 prog_path = join(proj_dir, progfile)
 print "hostfile_path:%s, prog_path:%s" % (hostfile_path, prog_path)
@@ -31,12 +31,9 @@ params = {
     "config_file" : hostfile_path,
     "hdfs_namenode" : "proj10",
     "hdfs_namenode_port" : 9000,
-    #"input" : "hdfs:///1155004171/dataset/preprocess_kos.txt",
-    #"input" : "/data/opt/tmp/1155004171/dataset/kos/preprocess_kos.txt",
     #"max_voc_id" : 6906,
     #"num_docs" : 3430,
-    #"input" : "hdfs:///1155004171/dataset/preprocess_nytimes.txt",
-    "input" : "data/preprocess_nytimes.txt",
+    "input" : proj_dir + "/data/preprocess_nytimes.txt",
     "max_voc_id" : 102660,
     "num_docs" : 299752,
     #"input" : "hdfs:///1155004171/dataset/preprocess_pubmed.txt",

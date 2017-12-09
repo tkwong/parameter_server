@@ -454,11 +454,6 @@ namespace csci5570 {
                         }
 
                         if (info.worker_id == 0) {
-                                std::ofstream ofs;
-                                ofs.open(result_write_path, std::ofstream::out | std::ofstream::app);
-                                if (!ofs.is_open()) {
-                                        LOG(INFO)<<"Error~ cannot open file";
-                                }
                                 std::fill(llh_and_time.begin(), llh_and_time.end(), 0);
                                 //int ts = kvworker->Pull(lda_stat_table, stat_keys, &llh_and_time, true);
                                 //kvworker->Wait(lda_stat_table, ts);
@@ -467,11 +462,11 @@ namespace csci5570 {
                                 // For PS task, each iteration is just each one iteration since all the docs are went through
                                 // For SPMT task, each iteration is num_process epochs when all the docs are went through
                                 int iteration = i;
-                                ofs << iteration <<"   ";
+                                LOG(INFO) << iteration <<"   ";
                                 //ofs << std::setw(4) << llh_and_time[pull_time_idx] <<"s "<< llh_and_time[push_time_idx] <<"s " << llh_and_time[sample_time_idx] << "s "
-                                ofs << llh_and_time[train_time_idx] <<" "<< llh_and_time[lda_llh_idx]<<" ";
-                                ofs << std::setw(4) << llh_and_time[mailbox_time_idx]<<"s "<<llh_and_time[llh_time_idx]<<"s ";
-                                ofs << std::setw(4) << llh_and_time[lda_llh_idx] << "s\n";
+                                LOG(INFO) << llh_and_time[train_time_idx] <<" "<< llh_and_time[lda_llh_idx]<<" ";
+                                LOG(INFO) << std::setw(4) << llh_and_time[mailbox_time_idx]<<"s "<<llh_and_time[llh_time_idx]<<"s ";
+                                LOG(INFO) << std::setw(4) << llh_and_time[lda_llh_idx] << "s\n";
                                 //LOG_I << "epoch:"<<info.get_current_epoch()<<" ";
 
                                 LOG(INFO)<<"Push:";
@@ -484,7 +479,6 @@ namespace csci5570 {
 
                                 lda_stat_table.Add(stat_keys, llh_and_time);
                                 lda_stat_table.Clock();
-                                ofs.close();
                         }
                 }  // end of iteration
         }
@@ -784,12 +778,8 @@ namespace csci5570 {
                                 auto end_epoch_timer = std::chrono::steady_clock::now();
                                 std::chrono::duration<double> one_epoch_time = end_epoch_timer - start_epoch_timer;
                                 if (worker_id == 0 && FLAGS_num_epochs > 1) {
-                                        std::string resFile = FLAGS_result_write_path;
-                                        std::ofstream ofs;
-                                        ofs.open(resFile, std::ofstream::out | std::ofstream::app);
-                                        //ofs<<"epoch "<<info.get_current_epoch()<<" takes:"<<one_epoch_time.count()<<"s\n";
+                                        // LOG(INFO)<<"epoch "<<info.get_current_epoch()<<" takes:"<<one_epoch_time.count()<<"s\n";
                                         LOG(INFO)<<"one_epoch_time:"<< one_epoch_time.count();
-                                        ofs.close();
                                 }
 
                                 auto end_time = std::chrono::steady_clock::now();
@@ -831,11 +821,6 @@ namespace csci5570 {
                                 CHECK_EQ(all_keys.size(), params.size());
                                 auto end_pull_time = std::chrono::steady_clock::now();
 
-                                std::ofstream of;
-                                std::ios_base::iostate exceptionMask = of.exceptions() | std::ios::failbit;
-                                of.exceptions(exceptionMask);
-                                of.open("/data/opt/tmp/1155004171/output/output-word-topic.txt", std::ofstream::out | std::ofstream::app);
-
                                 // print word topic table
                                 for (int i = 0; i < max_voc_id; i++)
                                 {
@@ -847,7 +832,7 @@ namespace csci5570 {
                                         }
                                         writeline += boost::lexical_cast<std::string>((int)params[i * num_topics + num_topics - 1]);
                                         writeline += "\n";
-                                        of << writeline;
+                                        LOG(INFO) << writeline;
                                 }
                                 // print topic summary table
                                 std::string writeline = "";
@@ -858,8 +843,7 @@ namespace csci5570 {
                                 }
                                 writeline += boost::lexical_cast<std::string>((int)params[max_voc_id * num_topics + num_topics - 1]);
                                 writeline += "\n";
-                                of << writeline;
-                                of.close();
+                                LOG(INFO) << writeline;
                                 }
 
                                 });
