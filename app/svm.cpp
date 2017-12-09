@@ -40,14 +40,15 @@ DEFINE_int32(n_features, -1, "The number of features in the dataset");
 DEFINE_int32(n_workers_per_node, 1, "The number of loaders per node");
 DEFINE_int32(n_iters, 10, "The number of iterations");
 DEFINE_int32(batch_size, 100, "Batch size");
-DEFINE_double(alpha, 0.0001, "learning rate");
+DEFINE_double(lambda, 0.0001, "lambda");
+DEFINE_double(learning_rate, 2, "learning rate");
 
 DEFINE_double(with_injected_straggler, 0.0, "injected straggler with its probability");
 DEFINE_double(with_injected_straggler_delay, 100, "injected straggler delay in ms");
 DEFINE_int32(get_updated_workload_rate, 5, "the rate (in iterations) to update the workload size from table.");
-DEFINE_bool(activate_scheduler, true, "activate scheduler");
-DEFINE_bool(activate_transient_straggler, true, "activate transient straggler");
-DEFINE_bool(activate_permanent_straggler, true, "activate permanemt straggler");
+DEFINE_bool(activate_scheduler, false, "activate scheduler");
+DEFINE_bool(activate_transient_straggler, false, "activate transient straggler");
+DEFINE_bool(activate_permanent_straggler, false, "activate permanemt straggler");
 
 // DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
@@ -56,7 +57,7 @@ DEFINE_validator(n_features, [](const char* flagname, int value){ return value>=
 
 int main(int argc, char** argv)
 {
-    gflags::SetUsageMessage("Usage : LogisticRegression ");
+    gflags::SetUsageMessage("Usage : SVM ");
     gflags::SetVersionString("1.0.0");
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);
@@ -67,44 +68,48 @@ int main(int argc, char** argv)
     // Parse config_file
     std::vector<Node> nodes;
 
-    if(FLAGS_config_file.empty()){
+    if(FLAGS_config_file.empty())
+    {
       Node node;
       node.id = 0;
       node.hostname = "localhost";
       node.port = 62353;
       LOG(INFO) << "Loaded Default Nodes :" << node.DebugString() ;
       nodes.push_back(std::move(node));
-    } else {
-      // std::vector<Node> nodes{{0, "localhost", 12353}, {1, "localhost", 12354},
-      //                         {2, "localhost", 12355}, {3, "localhost", 12356},
-      //                         {4, "localhost", 12357}};
+    } 
+    else 
+    {
 
-      std::ifstream input_file(FLAGS_config_file.c_str());
-      CHECK(input_file.is_open()) << "Error opening file: " << FLAGS_config_file;
-      std::string line;
-      while (getline(input_file, line)) {
-        size_t id_pos = line.find(":");
-        CHECK_NE(id_pos, std::string::npos);
-        std::string id = line.substr(0, id_pos);
-        size_t host_pos = line.find(":", id_pos+1);
-        CHECK_NE(host_pos, std::string::npos);
-        std::string hostname = line.substr(id_pos+1, host_pos - id_pos - 1);
-        std::string port = line.substr(host_pos+1, line.size() - host_pos - 1);
+       std::ifstream input_file(FLAGS_config_file.c_str());
+       CHECK(input_file.is_open()) << "Error opening file: " << FLAGS_config_file;
+       std::string line;
 
-        try {
-          Node node;
-          node.id = std::stoi(id);
-          node.hostname = std::move(hostname);
-          node.port = std::stoi(port);
-          LOG(INFO) << "Loaded Node from config: " << node.DebugString() ;
-          nodes.push_back(std::move(node));
-        }
-        catch(const std::invalid_argument& ia) {
-          LOG(FATAL) << "Invalid argument: " << ia.what() << "\n";
-        }
+       while (getline(input_file, line)) 
+       {
+          size_t id_pos = line.find(":");
+          CHECK_NE(id_pos, std::string::npos);
+          std::string id = line.substr(0, id_pos);
+          size_t host_pos = line.find(":", id_pos+1);
+          CHECK_NE(host_pos, std::string::npos);
+          std::string hostname = line.substr(id_pos+1, host_pos - id_pos - 1);
+          std::string port = line.substr(host_pos+1, line.size() - host_pos - 1);
+
+          try 
+          {
+            Node node;
+            node.id = std::stoi(id);
+            node.hostname = std::move(hostname);
+            node.port = std::stoi(port);
+            LOG(INFO) << "Loaded Node from config: " << node.DebugString() ;
+            nodes.push_back(std::move(node));
+          }
+          catch(const std::invalid_argument& ia) 
+          {
+            LOG(FATAL) << "Invalid argument: " << ia.what() << "\n";
+          }
       }
       LOG(INFO) << "Loaded Node from config file";
-        }
+    }
    
     const Node* my_node;
     for (const auto& node : nodes) {
@@ -279,7 +284,8 @@ int main(int argc, char** argv)
         Benchmark<> benchmark_wait_time;
 #endif
 
-        double learning_rate = FLAGS_alpha;
+        double learning_rate = FLAGS_learning_rate;
+        double lambda = FLAGS_lambda;
 
         std::vector<unsigned int> indices(node_samples.size());
         std::iota(indices.begin(), indices.end(), 0);
@@ -320,7 +326,7 @@ int main(int argc, char** argv)
 
               // Prepare the keys from sample
               std::vector<Key> keys;
-              keys.push_back(0);
+              //keys.push_back(0);
               for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it){
                 // DLOG(INFO) << "it.index(): " << it.index() ;
                 keys.push_back(it.index()) ;
@@ -349,26 +355,40 @@ int main(int argc, char** argv)
               CHECK_EQ(keys.size(), vals.size());
 
               // Predict
-              double yhat = vals.at(0);
+              double yhat = 0.0;
               // starting from 1, as the position of key = position of val
               for (int i = 1 ; i < keys.size() ; i ++ ) {
                   yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
               }
 
 
-              double predict = 1.0 / (1.0 + exp(-yhat));
+              //double predict = 1.0 / (1.0 + exp(-yhat));
 
               // Cal Error and Gradient
-              double error = (sample.label > 0 ? 1 : 0) - predict;
-              double gradient = vals.at(0);
+              //double error = (sample.label > 0 ? 1 : 0) - predict;
+              //double gradient = vals.at(0);
 
-              for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
-                  gradient += it.value() * error;
+              //for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
+              //    gradient += it.value() * error;
+
+              if (sample.label * yhat > 1)
+              {
+                  // Not support vector, only apply weight decay
+                  for (int i = 1; i < keys.size(); i++)
+                      vals.at(i) -= learning_rate * lambda * vals.at(i); 
+              }
+              else
+              {
+                  // Support vector, add to weights
+                  for (int i = 1; i < keys.size(); i++)
+                      vals.at(i) -= learning_rate * (lambda * vals.at(i) - sample.label * sample.features.coeffRef(keys[i]));
+              }
+
 
               // Update
-              vals.at(0) += learning_rate * gradient;
-              for (int i = 1 ; i < keys.size(); i++ )
-                  vals.at(i) += learning_rate * gradient;
+              //vals.at(0) += learning_rate * gradient;
+              //for (int i = 1 ; i < keys.size(); i++ )
+              //    vals.at(i) += learning_rate * gradient;
 
               // Transient Straggler
               if (FLAGS_with_injected_straggler > 0.0 ) {
@@ -444,15 +464,15 @@ int main(int argc, char** argv)
 
             table.Get(keys, &vals);
 
-            double yhat = vals.at(0);
+            double yhat = 0.0;
             for (int i = 1 ; i < keys.size() ; i ++ ) {
                 yhat += vals.at(i) * sample.features.coeffRef(keys[i]);
             }
-            double estimate = 1.0 / (1.0 + exp(-yhat));
+            //double estimate = 1.0 / (1.0 + exp(-yhat));
 
-            int est_class = (estimate > 0.5 ? 1 : 0);
-            int answer = (sample.label > 0 ? 1 : 0);
-            if (est_class == answer) correct++;
+            int est_class = (yhat >= 0 ? 1 : -1);
+            //int answer = (sample.label > 0 ? 1 : 0);
+            if (est_class == sample.label) correct++;
         }
         LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size()
                   << " " << float(correct)/test_samples.size()*100 << " percent";
