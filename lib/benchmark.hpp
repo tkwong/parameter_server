@@ -132,20 +132,50 @@ public:
     std::chrono::time_point<std::chrono::steady_clock> start_measure()
     {
         t1 = std::chrono::steady_clock::now();
+        saved_time = 0;
+        is_paused = false;
+        return t1;
+    }
+    
+    std::chrono::time_point<std::chrono::steady_clock> pause_measure()
+    {
+        auto t2 = std::chrono::steady_clock::now();
+        saved_time += std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
+        is_paused = true;
+        return t1;
+    }
+    
+    std::chrono::time_point<std::chrono::steady_clock> resume_measure()
+    {
+        t1 = std::chrono::steady_clock::now();
+        is_paused = false;
         return t1;
     }
     
     typename TimeT::rep stop_measure()
     {
-      auto t2 = std::chrono::steady_clock::now();
-      auto _time = std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
+      if (is_paused)
+      {
+        m_times.push_back(saved_time);
+
+        compute_mean();
+        compute_st_dev();
+        
+        return saved_time;
+      }
+      else
+      {
+        auto t2 = std::chrono::steady_clock::now();
+        auto _time = std::chrono::duration_cast<TimeT>( t2 - t1 ).count();
       
-      m_times.push_back(_time);
+        m_times.push_back(_time + saved_time);
+
       
-      compute_mean();
-      compute_st_dev();
+        compute_mean();
+        compute_st_dev();
       
-      return _time;
+        return _time + saved_time;
+      }
     }
 
 private:
@@ -172,6 +202,8 @@ private:
     int m_throw_away;
 
     std::vector<typename TimeT::rep> m_times;
+
+    typename TimeT::rep saved_time;
     
     std::chrono::time_point<std::chrono::steady_clock> t1;
 
@@ -180,4 +212,8 @@ private:
     typename TimeT::rep m_mean;
 
     typename TimeT::rep m_st_dev;
+    
+    bool is_paused;
+    
+
 };
