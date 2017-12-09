@@ -49,6 +49,7 @@ DEFINE_int32(get_updated_workload_rate, 5, "the rate (in iterations) to update t
 DEFINE_bool(activate_scheduler, true, "activate scheduler");
 DEFINE_bool(activate_transient_straggler, true, "activate transient straggler");
 DEFINE_bool(activate_permanent_straggler, true, "activate permanemt straggler");
+DEFINE_bool(prefetch_model_before_batch, false, "Prefetch (Get) needed model data before each batch");
 
 // DEFINE_validator(my_id, [](const char* flagname, int value){ return value>=0;});
 // DEFINE_validator(config_file, [](const char* flagname, std::string value){ return false;});
@@ -279,6 +280,7 @@ int main(int argc, char** argv)
         Benchmark<> benchmark_iter_process_time;
         Benchmark<> benchmark_wait_time;
 #endif
+        Benchmark <> actual_process_timer_;
 
         double learning_rate = FLAGS_alpha;
 
@@ -310,13 +312,49 @@ int main(int argc, char** argv)
             LOG(INFO) << "Running batch "<< batch_size << "...  [" << info.worker_id  << "]";
             // Pick a sample randomly from sample indices
             
+            // Get key value for this batch size (for example: batch = 10)
+            std::map <Key, double> _kvs; 
+            if (FLAGS_prefetch_model_before_batch)
+            {
+                _kvs[0] = 0;
+                for (int b = 0 ; b < batch_size ; b++ )
+                {
+                  auto sample = node_samples[indices[ b % node_samples.size() ]];
+                  for (Eigen::SparseVector<double>::InnerIterator it(sample.features); it; ++it)
+                  {
+                      //DLOG(INFO) << "it.index(): " << it.index() ;
+                      _kvs[it.index()] = 0 ;
+                  }
+                }
+
+                std::vector<Key> _keys;
+                std::vector<double> _vals;              
+                for(auto const& kv: _kvs) _keys.push_back(kv.first);
+#ifdef BENCHMARK
+                  benchmark_wait_time.start_measure();
+#endif
+
+                table.Get(_keys, &_vals);
+
+                CHECK_EQ(_keys.size() ,  _vals.size());
+
+#ifdef BENCHMARK
+                  // [STAT_GET]<iteration>,<thread_id>,<wait_time>
+                  benchmark_wait_time.stop_measure();
+                  VLOG(2) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
+#endif
+
+                for(int i = 0; i < _keys.size() ; i++)
+                {
+                    // DLOG(INFO) << _keys[i] << " = " << _vals[i] ;
+                   _kvs[_keys[i]] = _vals[i];
+                }
+
+            }
             
-            //Get key for this batch size (for example: batch = 10)
             for (int b = 0 ; b < batch_size ; b++ )
             {
-#ifdef BENCHMARK
-              benchmark_batch.start_measure();
-#endif
+
               auto sample = node_samples[indices[ b % node_samples.size() ]];
 
               // Prepare the keys from sample
@@ -329,28 +367,60 @@ int main(int argc, char** argv)
 
 
               // Get Vals
+              std::vector<double> vals;              
+
+              if (FLAGS_prefetch_model_before_batch)
+              {
+                  // Get the vals from prefetched kv store
+                  for(int i = 0; i < keys.size() ; i++)
+                  {
+                    //CHECK_NE(_kvs.find(keys[i]), _kvs.end());
+                    vals.push_back(_kvs[keys[i]]);
+                  }
+              } 
+              else 
+              { 
+
 #ifdef BENCHMARK
-              benchmark_wait_time.start_measure();
+                  benchmark_wait_time.start_measure();
+#endif
+                // Get the key that not in _kvs
+                std::vector<Key> keys_;
+                std::vector<double> vals_;
+                for(int i = 0; i < keys.size() ; i++)
+                    if(_kvs.find(keys[i]) == _kvs.end())
+                        keys_.push_back(keys[i]);
+
+                // Do Get for the missing key val 
+                table.Get(keys_, &vals_);
+
+                //cache the key
+                for(int i = 0 ; i < keys_.size() ; i++)
+                    _kvs[keys_[i]] = vals_[i];
+                
+                // set the vals from the cache (should be filled by previous get)
+                for(int i = 0; i < keys.size() ; i++)
+                {
+                    //CHECK_NE(_kvs.find(keys[i]), _kvs.end());
+                    vals.push_back(_kvs[keys[i]]);
+                }
+
+#ifdef BENCHMARK
+                  // [STAT_GET]<iteration>,<thread_id>,<wait_time>
+                  benchmark_wait_time.stop_measure();
+                  VLOG(2) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
 #endif
 
-              std::vector<double> vals;              
-              table.Get(keys, &vals);
-              
-#ifdef BENCHMARK
-              // [STAT_GET]<iteration>,<thread_id>,<wait_time>
-              benchmark_wait_time.stop_measure();
-              VLOG(2) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
-#endif
-              
-              
+              }
+
 #ifdef BENCHMARK
               benchmark_iter_process_time.start_measure();
 #endif
-              Benchmark <> actual_process_timer_;
+              // Measure Actual Process Time 
               actual_process_timer_.start_measure();
 
               // DLOG(INFO) << "vals.size(): " << vals.size();
-              CHECK_EQ(keys.size(), vals.size());
+              // CHECK_EQ(keys.size(), vals.size());
 
               // Predict
               double yhat = vals.at(0);
@@ -404,11 +474,9 @@ int main(int argc, char** argv)
               table.Add(keys, vals);
               
 #ifdef BENCHMARK
-              benchmark_batch.stop_measure();
-
               // [STAT_PROCESS]<iteration>,<thread_id>,<process_time>
               benchmark_iter_process_time.stop_measure();
-              VLOG(2) << "[STAT_PROC] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.last();
+              VLOG(2) << "[STAT_PROC] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.last() << "," << b;
 
 #endif
 
