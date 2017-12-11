@@ -507,6 +507,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
         benchmark_woker_time.stop_measure();
         LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark_woker_time.sum()/1000. << "ms";
+        VLOG(2) << "[STAT_TOTL] " << info.thread_id << "," << benchmark_woker_time.sum();
 #endif
         // Test
         int correct = 0;
