@@ -171,10 +171,14 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
     //for (auto worker_id : worker_ids) LOG(INFO) << worker_id;
     //LOG(INFO) << "---------------------------------------------------";
 
-    Message terminate;
-    terminate.meta.flag = Flag::kExit;
-    worker_thread_.get()->GetWorkQueue()->Push(terminate);
-    worker_thread_.get()->Stop();
+    //Message terminate;
+    //terminate.meta.flag = Flag::kExit;
+    //worker_thread_.get()->GetWorkQueue()->Push(terminate);
+    //worker_thread_.get()->Stop();
+
+    callback_runner_.get()->RegisterRecvHandle(worker_thread_.get()->GetId(), table_id, [](Message& msg){});
+    callback_runner_.get()->RegisterRecvFinishHandle(worker_thread_.get()->GetId(), table_id, []{});
+    callback_runner_.get()->NewRequest(worker_thread_.get()->GetId(), table_id, id_mapper_.get()->GetAllServerThreads().size());
 
     for (auto server_id : id_mapper_.get()->GetAllServerThreads())
     {
@@ -187,19 +191,21 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
         reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
         sender_.get()->GetMessageQueue()->Push(reset_msg);
     }
+
+    callback_runner_.get()->WaitRequest(worker_thread_.get()->GetId(), table_id);
     
-    for (auto server_id : id_mapper_.get()->GetAllServerThreads())
+    /*for (auto server_id : id_mapper_.get()->GetAllServerThreads())
     {
       Message reply;
       worker_thread_.get()->GetWorkQueue()->WaitAndPop(&reply);
       CHECK(reply.meta.flag == Flag::kResetWorkerInModel);
       CHECK(reply.meta.model_id == table_id);
       LOG(INFO) << "Reset Message received server_id: " << reply.meta.sender << " for table_id: " << table_id;    
-    }
+    }*/
 
-    LOG(INFO) << "Starting Worker Thread";
-        worker_thread_.get()->Start();
-    LOG(INFO) << "Started Worker Thread";
+    //LOG(INFO) << "Starting Worker Thread";
+    //    worker_thread_.get()->Start();
+    //LOG(INFO) << "Started Worker Thread";
 }
 
 void Engine::Run(const MLTask& task) {
