@@ -40,8 +40,6 @@ void ServerThread::Main() {
         if (msg.meta.model_id != 0) LOG(INFO) << "Server " << id_ << " receiving get:" << msg.DebugString();
         model->Get(msg);
         break;
-      case Flag::kBarrier:
-        break;
       case Flag::kResetWorkerInModel:
         model->ResetWorker(msg);
         break;

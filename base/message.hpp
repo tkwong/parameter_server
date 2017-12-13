@@ -15,22 +15,25 @@ enum class Flag : char { kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGe
 static const char* FlagName[] = {"kExit", "kBarrier", "kResetWorkerInModel", "kClock", "kAdd", "kGet"};
 
 struct Meta {
+  Flag flag;  // {kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet}
   int sender;
   int recver;
   int model_id;
-  Flag flag;  // {kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet}
 
   std::string DebugString() const {
     std::stringstream ss;
     ss << "Meta: { ";
     ss << "sender: " << sender;
     ss << ", recver: " << recver;
-    ss << ", model_id: " << model_id;
+    if( flag != Flag::kBarrier && flag != Flag::kExit )
+      ss << ", model_id: " << model_id;
     ss << ", flag: " << FlagName[static_cast<int>(flag)];
 
     ss << "}";
     return ss.str();
   }
+  // Initialize with -1
+  Meta() : sender(-1), recver(-1), model_id(-1) {}
 };
 
 struct Message {
