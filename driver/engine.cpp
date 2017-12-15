@@ -145,8 +145,8 @@ void Engine::StopMailbox() {
 }
 
 void Engine::Barrier() {
-    mailbox_.get()->Barrier();
     LOG(INFO) << "Barrier called";
+    mailbox_.get()->Barrier();
 }
 
 WorkerSpec Engine::AllocateWorkers(const std::vector<WorkerAlloc>& worker_allocs) {
@@ -175,24 +175,28 @@ void Engine::InitTable(uint32_t table_id, const std::vector<uint32_t>& worker_id
     //terminate.meta.flag = Flag::kExit;
     //worker_thread_.get()->GetWorkQueue()->Push(terminate);
     //worker_thread_.get()->Stop();
+    
+    std::vector<uint32_t> local_servers = id_mapper_->GetServerThreadsForId(node_.id);
+    int local_server_count = local_servers.size();
+    if (local_server_count == 0) return;
 
-    callback_runner_.get()->RegisterRecvHandle(worker_thread_.get()->GetId(), table_id, [](Message& msg){});
-    callback_runner_.get()->RegisterRecvFinishHandle(worker_thread_.get()->GetId(), table_id, []{});
-    callback_runner_.get()->NewRequest(worker_thread_.get()->GetId(), table_id, id_mapper_.get()->GetAllServerThreads().size());
+    callback_runner_->RegisterRecvHandle(worker_thread_->GetId(), table_id, [](Message& msg){});
+    callback_runner_->RegisterRecvFinishHandle(worker_thread_->GetId(), table_id, []{});
+    callback_runner_->NewRequest(worker_thread_->GetId(), table_id, local_server_count);
 
-    for (auto server_id : id_mapper_.get()->GetAllServerThreads())
+    for (auto server_id : local_servers)
     {
         LOG(INFO) << "Sending Reset Message to server_id: " << server_id << " for table_id: " << table_id;
         Message reset_msg;
-        reset_msg.meta.sender = worker_thread_.get()->GetId();
+        reset_msg.meta.sender = worker_thread_->GetId();
         reset_msg.meta.recver = server_id;
         reset_msg.meta.flag = Flag::kResetWorkerInModel;
         reset_msg.meta.model_id = table_id;
         reset_msg.AddData(third_party::SArray<uint32_t>(worker_ids));
-        sender_.get()->GetMessageQueue()->Push(reset_msg);
+        sender_->GetMessageQueue()->Push(reset_msg);
     }
 
-    callback_runner_.get()->WaitRequest(worker_thread_.get()->GetId(), table_id);
+    callback_runner_->WaitRequest(worker_thread_->GetId(), table_id);
     
     /*for (auto server_id : id_mapper_.get()->GetAllServerThreads())
     {
