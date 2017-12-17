@@ -33,11 +33,11 @@ void ServerThread::Main() {
         model->Clock(msg);
         break;
       case Flag::kAdd:
-        if (msg.meta.model_id != 0) LOG(INFO) << "Server " << id_ << " receiving add:" << msg.DebugString();
+        // if (msg.meta.model_id != 0) LOG(INFO) << "Server " << id_ << " receiving add:" << msg.DebugString();
         model->Add(msg);
         break;
       case Flag::kGet:
-        if (msg.meta.model_id != 0) LOG(INFO) << "Server " << id_ << " receiving get:" << msg.DebugString();
+        // if (msg.meta.model_id != 0) LOG(INFO) << "Server " << id_ << " receiving get:" << msg.DebugString();
         model->Get(msg);
         break;
       case Flag::kResetWorkerInModel:

@@ -47,6 +47,24 @@ class Parser {
     // check the MNIST format and complete the parsing
   }
 
+  static Sample parse_matrix(boost::string_ref line, int n_features) {
+    Sample sample(2); // 2d matrix
+
+    char *str = strdup(std::string(line).c_str());
+    char *saveptr1;
+
+    char *user = strtok_r(str, "\t", &saveptr1);;
+    sample.addFeature(0, std::stoi(user));
+
+    char *item = strtok_r(NULL, "\t", &saveptr1);
+    sample.addFeature(1, std::stoi(item));
+
+    char *rating = strtok_r(NULL, "\t", &saveptr1);
+    sample.addLabel(std::stoi(rating));
+
+    return sample;
+  }
+
   // You may implement other parsing logic
 
 };  // class Parser
