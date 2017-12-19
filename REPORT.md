@@ -127,12 +127,15 @@ e.g. `VLOG(2) << "[STAT_TIME] " `
 
 ### Logistic Regression
 <!-- TODO:  -->
+https://machinelearningmastery.com/implement-logistic-regression-stochastic-gradient-descent-scratch-python/
 
 ### Support Vector Machine
 <!-- TODO:  -->
+https://maviccprp.github.io/a-support-vector-machine-in-just-a-few-lines-of-python-code/
 
 ### Matrix Factorization
 <!-- TODO:  -->
+http://www.albertauyeung.com/post/python-matrix-factorization/
 
 ### Latent Dirichlet allocation
 <!-- TODO:  Do we need that? -->
