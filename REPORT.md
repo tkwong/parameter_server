@@ -149,9 +149,22 @@ e.g. `VLOG(2) << "[STAT_TIME] " `
 ### Evaluation on the performance
 <!-- TODO:  Will post the plot here -->
 
-#### Logistic Regression, With Scheduler and Without Scheduler
+#### Workload update time Analysis
+![](doc/job_time_vs_workload_update_rate.png)
 
-#### SVM, With Scheduler and Without Scheduler
+#### Logistic Regression, With injected Permanent Straggler
+![](doc/perm_straggler_no_scheduler.png)
 
-#### SVM, With Scheduler and Without Scheduler
+#### Logistic Regression, With injected Permanent Straggler and Scheduler
+![](doc/perm_straggler_with_scheduler.png)
+
+#### Logistic Regression, With injected Transient Straggler
+![](doc/tran_straggler_no_scheduler.png)
+
+#### Logistic Regression, With injected Transient Straggler and Scheduler
+![](doc/tran_straggler_with_scheduler.png)
+
+#### Suport Vector Machine, With Scheduler and Without Scheduler
+
+#### Matrix Factorization, With Scheduler and Without Scheduler
 
