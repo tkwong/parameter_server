@@ -162,6 +162,9 @@ int main(int argc, char** argv)
 
     LOG(INFO) << "Got " << node_samples.size() << " samples";
 
+    Sample sample = *(samples.begin());
+    LOG(INFO) << "First sample: " << sample.features.coeffRef(0) << " " << sample.features.coeffRef(1) << " " << sample.label;
+
     Engine* engine = new Engine(*my_node, nodes);
     engine->StartEverything();
 
@@ -287,7 +290,7 @@ int main(int argc, char** argv)
         // Estimate mean rating
         int mean_rating = 0;
         Eigen::SparseMatrix<int> full_matrix(FLAGS_n_users, FLAGS_n_items);
-        for (int pos = 0; pos < std::min<int>(node_samples.size(), 500000); pos++)
+        for (int pos = 0; pos < std::min<int>(node_samples.size(), 5000); pos++)
         {
             auto sample = node_samples[pos];
             int i = sample.features.coeffRef(0);
