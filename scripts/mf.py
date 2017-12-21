@@ -19,7 +19,7 @@ import time
 #hostfile = "machinefiles/local"
 hostfile = "machinefiles/5node"
 #hostfile = "machinefiles/2node"
-progfile = "build/MF"
+progfile = "build/MatrixFac"
 
 script_path = os.path.realpath(__file__)
 proj_dir = dirname(dirname(script_path))
@@ -32,18 +32,18 @@ params = {
     "config_file":hostfile_path,
     #"input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
     #"n_features": 1000000,
-    "n_iters": 10,
-    "batch_size": 1,
-    "input": "hdfs://proj10:9000/datasets/ml/netflix/netflix_0",
+    "n_iters": 1,
+    "batch_size": 10,
+    "input": "hdfs://proj10:9000/datasets/ml/netflix/",
     "n_users": 2649430,
     "n_items": 17771,
-    "n_workers_per_node": 5,
-    "alpha": 0.0001,
-    "beta": 0.02,
+    "n_workers_per_node": 1,
+    "alpha": 0.1,
+    "beta": 0.005,
     "latent": 20,
     #"with_injected_straggler": 0.05,
     "with_injected_straggler_delay": 10,
-    "get_updated_workload_rate": 1,
+    "get_updated_workload_rate": 5,
     "activate_scheduler": True,
     "activate_transient_straggler": False,
     "activate_permanent_straggler": False
@@ -57,7 +57,7 @@ ssh_cmd = (
 
 env_params = (
   "GLOG_logtostderr=true "
-  "GLOG_v=2 "
+  "GLOG_v=-1"
   #"GLOG_minloglevel=0 "
   # this is to enable hdfs short-circuit read (disable the warning info)
   # change this path accordingly when we use other cluster

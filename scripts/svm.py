@@ -30,19 +30,19 @@ print "hostfile_path:%s, prog_path:%s" % (hostfile_path, prog_path)
 
 params = {
     "config_file":hostfile_path,
-    #"input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
-    #"n_features": 1000000,
-    "n_iters": 1000,
-    "batch_size": 10,
     "input": "hdfs://proj10:9000/datasets/classification/a9/",
     "n_features": 123,
-    "n_workers_per_node": 5,
+    "n_iters": 100,
+    "batch_size": 10,
+    #"input": "hdfs://proj10:9000/datasets/classification/kdd12/",
+    #"n_features": 54686452,
+    "n_workers_per_node": 1,
     "lambda": 0.000001,
     "learning_rate": 2,
     #"with_injected_straggler": 0.05,
-    "with_injected_straggler_delay": 10,
+    #"with_injected_straggler_delay": 10,
     "get_updated_workload_rate": 1,
-    "activate_scheduler": True,
+    "activate_scheduler": False,
     "activate_transient_straggler": False,
     "activate_permanent_straggler": False
 }
@@ -55,7 +55,7 @@ ssh_cmd = (
 
 env_params = (
   "GLOG_logtostderr=true "
-  "GLOG_v=2 "
+  "GLOG_v=-1 "
   #"GLOG_minloglevel=0 "
   # this is to enable hdfs short-circuit read (disable the warning info)
   # change this path accordingly when we use other cluster
