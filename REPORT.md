@@ -104,47 +104,83 @@ The Scheduler will be implemented by application UDF using `task.SetScheduler()`
 
 We support random straggler delay in application, for example, in `logistic_regression.cpp`, we add
 
-    DEFINE_double(with_injected_straggler, 0.0, "injected straggler with its probability");
-    DEFINE_double(with_injected_straggler_delay, 100, "injected straggler delay in ms (obsoleted)");
     DEFINE_double(with_injected_straggler_delay_percent, 100, "injected straggler delay in %");
+    DEFINE_bool(activate_transient_straggler, true, "activate transient straggler");
+    DEFINE_bool(activate_permanent_straggler, true, "activate permanemt straggler");
 
-<!-- TODO: more explaination -->
+`with_injected_straggler_delay_percent` is the setting to inject straggler delay to the actual execution time of the iteration. for example, the actual iteration time is 1s, then the 100% delay will incur 1s sleep before Add/Clock
+
+`activate_transient_straggler` is to activate the injection of transisent straggler. The transisent straggler is now designed to inject delay to worker ID == 1 and iteration count from 50 to 75. 
+
+    if (FLAGS_activate_transient_straggler && info.worker_id == 1 && i >= 50 && i < 75)
+
+`activate_permanent_straggler` is to activate the injection of permanet straggler. The permanent straggler is now designed to inject delay to worker ID == 3 and to all iteration. 
+
+    if (FLAGS_activate_permanent_straggler && info.worker_id == 3)
 
 ### Benchmark Utility
 We implemented benchmark utility so that we can measure the actual time lapsed for some part of the code.
 implemented in `lib/benchmark.hpp`
-<!-- TODO: any significance? -->
+
+It is designed to collecting datapoint for benchmark and instrument the execution time for statistic or straggler delay calculation. 
+
+It provide the call to `start_measure`, `stop_measure`, `pause_measure` and `resume_measure` for collecting one data point. Whenever calling a `start_measure`, it will start a new data point and util `stop_measure`, it will record a data point. With all the datapoint is stored in Benchmark object, it provide a `mean`, `std_dev`, `sum` or `total` for all data point, also you can retrieve last n datapoint recorded through `last(n)` function. 
+
+It also provide the utility call to inject a lambda function and calculate the time lapsed. more please see the `lib/benchmark_test.cpp` for its functionalities and testing. 
 
 ### Reporting interface
 
 We use GLOG with prefix [STAT_TYPE] to allow worker/server to report the time, and gathered into CSV format.
 e.g. `VLOG(2) << "[STAT_TIME] " `
-<!-- FIXME: seems this implementation is not so fancy.. -->
 
+Currently we use a runner script to extract the running statistic. `scripts/logistic_regression.py`, `scripts/svm.py`, `scripts/mf.py` will launch the application in cluster through SSH, and it will collect all the log into a shared folder (default to logs/[timestamp]). When the app is completed, the script will select the statistic log and distribute to CSV with corresponding file. e.g. stat_time, stat_work, stat_iter.. 
+
+    print "Preparing statistic file"
+    for type in ['wait' , 'proc', 'iter', 'work', 'time', 'totl'] :
+        os.system("grep STAT_" + type.upper() + " " + log_dir + "/output.* | awk '{print $5 \",\" $6}' > " + log_dir + "/stat_" + type + ".csv")
+
+After generating the stat file, it has a function to email the stat file to the user. :)
+
+    email=os.getlogin() + "@link.cuhk.edu.hk"
+    print "Email result? [yes or no]"
+    yes = {'yes','y', 'ye', ''}
+    no = {'no','n'}
+    #choice = raw_input().lower()
+    choice = "yes"
+    while True :
+        if choice in yes :
+            print "Sending Email to [" + email + "]"
+            os.system("mail -s 'Result for" + log_dir + "' -a " + log_dir + "/stat_iter.csv   -a " + log_dir + "/stat_proc.csv   -a " + log_dir +      "/stat_time.csv   -a " + log_dir + "/stat_wait.csv   -a " + log_dir + "/stat_work.csv  "+email+" < /dev/null")
+            break
+        elif choice in no:
+            break
+        else:
+          print "Please respond with 'yes' or 'no'"
+    print "Finished"
 
 ## 3. Application
-<!-- TODO: Brief discussion on the algorithm is sufficient-->
+
+Basically we are porting the other implementation (majorly python) and implement into our parameter server impelementation. 
 
 ### Logistic Regression
-<!-- TODO:  -->
-https://machinelearningmastery.com/implement-logistic-regression-stochastic-gradient-descent-scratch-python/
+
+The implementation is based on the SGD approach, basically porting the python implementation to our implementation <https://machinelearningmastery.com/implement-logistic-regression-stochastic-gradient-descent-scratch-python/> 
 
 ### Support Vector Machine
-<!-- TODO:  -->
-https://maviccprp.github.io/a-support-vector-machine-in-just-a-few-lines-of-python-code/
+
+The SVM implementation is also based on the python implementation here: 
+<https://maviccprp.github.io/a-support-vector-machine-in-just-a-few-lines-of-python-code/>
 
 ### Matrix Factorization
-<!-- TODO:  -->
-http://www.albertauyeung.com/post/python-matrix-factorization/
 
-### Latent Dirichlet allocation
-<!-- TODO:  Do we need that? -->
+The Matrix Factorization implementation is also based on the python implementation here: 
+<http://www.albertauyeung.com/post/python-matrix-factorization/>
 
 ## 4. Conclusion
-<!--  Suggested by TA about the additional features-->
 
 ### Final Design
 <!-- TODO: Anything we need to address here instead of baseline -->
+
 
 ### Technical Challenges
 <!-- TODO:  -->
