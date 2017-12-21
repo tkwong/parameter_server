@@ -183,7 +183,45 @@ The Matrix Factorization implementation is also based on the python implementati
 
 
 ### Technical Challenges
-<!-- TODO:  -->
+We have designed a scheduling algorithm for the scheduler.
+
+    double min_time = *std::min_element(times.begin(), times.end());
+    int workload_buffer = 0, count = 0;
+
+    std::multimap<double, uint32_t> time2thread;
+    std::map<uint32_t, int> thread2index;
+
+    for (int j = 0; j < info.thread_ids.size(); j++)
+    {
+    if (times[j] > min_time * update_threshold)
+    {
+    workload_buffer += round(workloads[j] * rebalance_workload);
+    workloads[j] = round(workloads[j] * (1 - rebalance_workload));
+    }
+    else count += 1;
+
+    time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
+    thread2index.insert(std::make_pair(info.thread_ids[j], j));
+    }
+
+    for (auto pair : time2thread)
+    {
+    workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
+    workload_buffer -= round(workload_buffer / double(count));
+    count -= 1;
+    if (workload_buffer < 1) break;
+    }
+
+    info.workloadTable->Add(info.thread_ids, workloads);
+
+The algorithm works as follow,
+1. Find the smallest processing time as min_time.
+2. Find the workers that have processing time larger than min_time * update_threshold (we set this to 1.5).
+3. Take away some workloads from these workers, the number of workloads taking away is calculated by current workload * rebalance_workload (we set this to 0.2). Since number of workloads must be integer, we round the result.
+4. Distribute these workloads to the remaining workers in ascending order of their processing time, try to distribute evenly while make sure that the total workloads is unchanged.
+
+This algorithm can handle both permanent and transient stragglers. This is because when a permanent or transient straggler is found, its workloads will be reduced by the algorithm. It also works when the transient straggler is recovered, because the recovered worker will have the smallest processing time and caused others to be treated as stragglers. Therefore, the algorithm will give back some workloads to this worker.
+
 
 ### Evaluation on the performance
 <!-- TODO:  Will post the plot here -->
