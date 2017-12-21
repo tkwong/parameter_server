@@ -193,23 +193,23 @@ We have designed a scheduling algorithm for the scheduler.
 
     for (int j = 0; j < info.thread_ids.size(); j++)
     {
-    if (times[j] > min_time * update_threshold)
-    {
-    workload_buffer += round(workloads[j] * rebalance_workload);
-    workloads[j] = round(workloads[j] * (1 - rebalance_workload));
-    }
-    else count += 1;
+        if (times[j] > min_time * update_threshold)
+        {
+            workload_buffer += round(workloads[j] * rebalance_workload);
+            workloads[j] = round(workloads[j] * (1 - rebalance_workload));
+        }
+        else count += 1;
 
-    time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
-    thread2index.insert(std::make_pair(info.thread_ids[j], j));
+        time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
+        thread2index.insert(std::make_pair(info.thread_ids[j], j));
     }
 
     for (auto pair : time2thread)
     {
-    workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
-    workload_buffer -= round(workload_buffer / double(count));
-    count -= 1;
-    if (workload_buffer < 1) break;
+        workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
+        workload_buffer -= round(workload_buffer / double(count));
+        count -= 1;
+        if (workload_buffer < 1) break;
     }
 
     info.workloadTable->Add(info.thread_ids, workloads);
