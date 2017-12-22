@@ -165,16 +165,18 @@ Basically we are porting the other implementation (majorly python) and implement
 ### Logistic Regression
 
 The implementation is based on the SGD approach, basically porting the python implementation to our implementation <https://machinelearningmastery.com/implement-logistic-regression-stochastic-gradient-descent-scratch-python/> 
+Execute from `scripts/logistic_regression.py`
 
 ### Support Vector Machine
 
 The SVM implementation is also based on the python implementation here: 
 <https://maviccprp.github.io/a-support-vector-machine-in-just-a-few-lines-of-python-code/>
-
+Execute from `scripts/svm.py`
 ### Matrix Factorization
 
 The Matrix Factorization implementation is also based on the python implementation here: 
 <http://www.albertauyeung.com/post/python-matrix-factorization/>
+Execute from `scripts/mf.py`
 
 ## 4. Conclusion
 
@@ -183,13 +185,157 @@ The Matrix Factorization implementation is also based on the python implementati
 
 
 ### Technical Challenges
-<!-- TODO:  -->
+We have designed a scheduling algorithm for the scheduler.
+
+    double min_time = *std::min_element(times.begin(), times.end());
+    int workload_buffer = 0, count = 0;
+
+    std::multimap<double, uint32_t> time2thread;
+    std::map<uint32_t, int> thread2index;
+
+    for (int j = 0; j < info.thread_ids.size(); j++)
+    {
+        if (times[j] > min_time * update_threshold)
+        {
+            workload_buffer += round(workloads[j] * rebalance_workload);
+            workloads[j] = round(workloads[j] * (1 - rebalance_workload));
+        }
+        else count += 1;
+
+        time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
+        thread2index.insert(std::make_pair(info.thread_ids[j], j));
+    }
+
+    for (auto pair : time2thread)
+    {
+        workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
+        workload_buffer -= round(workload_buffer / double(count));
+        count -= 1;
+        if (workload_buffer < 1) break;
+    }
+
+    info.workloadTable->Add(info.thread_ids, workloads);
+
+The algorithm works as follow,
+1. Find the smallest processing time as min_time.
+2. Find the workers that have processing time larger than min_time * update_threshold (we set this to 1.5).
+3. Take away some workloads from these workers, the number of workloads taking away is calculated by current workload * rebalance_workload (we set this to 0.2). Since number of workloads must be integer, we round the result.
+4. Distribute these workloads to the remaining workers in ascending order of their processing time, try to distribute evenly while make sure that the total workloads is unchanged.
+
+This algorithm can handle both permanent and transient stragglers. This is because when a permanent or transient straggler is found, its workloads will be reduced by the algorithm. It also works when the transient straggler is recovered, because the recovered worker will have the smallest processing time and caused others to be treated as stragglers. Therefore, the algorithm will give back some workloads to this worker.
+
 
 ### Evaluation on the performance
-<!-- TODO:  Will post the plot here -->
+
+#### KDD12 Logistic Regression, 10 iterations
+
+Iteration : 10
+Batch Size : 100
+
+Average Data Loading time : 80s. 
+
+    output.0.log:I1222 02:37:16.931885 117845 logistic_regression.cpp:279] Worker 3 load time 93499 ms
+    output.0.log:I1222 02:37:17.523623 117843 logistic_regression.cpp:279] Worker 1 load time 94091.5 ms
+    output.0.log:I1222 02:37:18.040526 117847 logistic_regression.cpp:279] Worker 4 load time 94607.3 ms
+    output.0.log:I1222 02:37:20.087000 117844 logistic_regression.cpp:279] Worker 2 load time 96654.8 ms
+    output.1.log:I1222 02:37:12.184015 117409 logistic_regression.cpp:279] Worker 8 load time 88750.8 ms
+    output.1.log:I1222 02:37:12.378906 117407 logistic_regression.cpp:279] Worker 6 load time 88946.8 ms
+    output.1.log:I1222 02:37:12.521369 117408 logistic_regression.cpp:279] Worker 7 load time 89089.2 ms
+    output.1.log:I1222 02:37:12.564000 117411 logistic_regression.cpp:279] Worker 9 load time 89129.5 ms
+    output.1.log:I1222 02:37:12.585086 117406 logistic_regression.cpp:279] Worker 5 load time 89153.1 ms
+    output.2.log:I1222 02:37:12.317158 17870 logistic_regression.cpp:279] Worker 13 load time 88882.8 ms
+    output.2.log:I1222 02:37:12.400319 17868 logistic_regression.cpp:279] Worker 11 load time 88968.2 ms
+    output.2.log:I1222 02:37:12.419085 17872 logistic_regression.cpp:279] Worker 14 load time 88984.3 ms
+    output.2.log:I1222 02:37:19.007053 17869 logistic_regression.cpp:279] Worker 12 load time 95574.9 ms
+    output.2.log:I1222 02:37:19.580077 17867 logistic_regression.cpp:279] Worker 10 load time 96148.1 ms
+    output.3.log:I1222 02:37:12.183238 60334 logistic_regression.cpp:279] Worker 17 load time 88751 ms
+    output.3.log:I1222 02:37:12.200084 60337 logistic_regression.cpp:279] Worker 19 load time 88765.6 ms
+    output.3.log:I1222 02:37:12.360842 60335 logistic_regression.cpp:279] Worker 18 load time 88926.4 ms
+    output.3.log:I1222 02:37:12.558207 60333 logistic_regression.cpp:279] Worker 16 load time 89126.1 ms
+    output.3.log:I1222 02:37:12.584966 60332 logistic_regression.cpp:279] Worker 15 load time 89152.9 ms
+
+Average Sample per Worker: 8 Million sample
+
+    output.0.log:I1222 02:37:16.932014 117845 logistic_regression.cpp:281] Worker 3 got 8433699 samples
+    output.0.log:I1222 02:37:17.523679 117843 logistic_regression.cpp:281] Worker 1 got 8439524 samples
+    output.0.log:I1222 02:37:18.040565 117847 logistic_regression.cpp:281] Worker 4 got 8435698 samples
+    output.0.log:I1222 02:37:20.087049 117844 logistic_regression.cpp:281] Worker 2 got 8399069 samples
+    output.1.log:I1222 02:37:12.184139 117409 logistic_regression.cpp:281] Worker 8 got 8311476 samples
+    output.1.log:I1222 02:37:12.378942 117407 logistic_regression.cpp:281] Worker 6 got 8043410 samples
+    output.1.log:I1222 02:37:12.521420 117408 logistic_regression.cpp:281] Worker 7 got 7867438 samples
+    output.1.log:I1222 02:37:12.564056 117411 logistic_regression.cpp:281] Worker 9 got 7757567 samples
+    output.1.log:I1222 02:37:12.585137 117406 logistic_regression.cpp:281] Worker 5 got 8208962 samples
+    output.2.log:I1222 02:37:12.317250 17870 logistic_regression.cpp:281] Worker 13 got 8095891 samples
+    output.2.log:I1222 02:37:12.400389 17868 logistic_regression.cpp:281] Worker 11 got 7819678 samples
+    output.2.log:I1222 02:37:12.419123 17872 logistic_regression.cpp:281] Worker 14 got 8206091 samples
+    output.2.log:I1222 02:37:19.007103 17869 logistic_regression.cpp:281] Worker 12 got 8434659 samples
+    output.2.log:I1222 02:37:19.580134 17867 logistic_regression.cpp:281] Worker 10 got 8433006 samples
+    output.3.log:I1222 02:37:12.183383 60334 logistic_regression.cpp:281] Worker 17 got 7203196 samples
+    output.3.log:I1222 02:37:12.200134 60337 logistic_regression.cpp:281] Worker 19 got 6873306 samples
+    output.3.log:I1222 02:37:12.360882 60335 logistic_regression.cpp:281] Worker 18 got 6597970 samples
+    output.3.log:I1222 02:37:12.558248 60333 logistic_regression.cpp:281] Worker 16 got 6654713 samples
+    output.3.log:I1222 02:37:12.585008 60332 logistic_regression.cpp:281] Worker 15 got 7423752 samples
+
+Average Itertion time: ~ 17s. 
+Total Execution time: 171s. 
+
+    output.0.log:I1222 02:40:11.321419 117844 logistic_regression.cpp:525] Worker 2 total runtime: 171234ms
+    output.0.log:I1222 02:40:11.329380 117847 logistic_regression.cpp:525] Worker 4 total runtime: 173289ms
+    output.0.log:I1222 02:40:11.336272 117843 logistic_regression.cpp:525] Worker 1 total runtime: 173813ms
+    output.0.log:I1222 02:40:11.350024 117845 logistic_regression.cpp:525] Worker 3 total runtime: 174418ms
+    output.1.log:I1222 02:40:11.608777 117409 logistic_regression.cpp:525] Worker 8 total runtime: 179425ms
+    output.1.log:I1222 02:40:12.654990 117411 logistic_regression.cpp:525] Worker 9 total runtime: 180091ms
+    output.1.log:I1222 02:40:12.864240 117408 logistic_regression.cpp:525] Worker 7 total runtime: 180343ms
+    output.1.log:I1222 02:40:14.051151 117407 logistic_regression.cpp:525] Worker 6 total runtime: 181672ms
+    output.1.log:I1222 02:40:14.192062 117406 logistic_regression.cpp:525] Worker 5 total runtime: 181607ms
+    output.2.log:I1222 02:40:11.319252 17870 logistic_regression.cpp:525] Worker 13 total runtime: 179002ms
+    output.2.log:I1222 02:40:11.321858 17868 logistic_regression.cpp:525] Worker 11 total runtime: 178921ms
+    output.2.log:I1222 02:40:11.601627 17872 logistic_regression.cpp:525] Worker 14 total runtime: 179182ms
+    output.2.log:I1222 02:40:13.662636 17869 logistic_regression.cpp:525] Worker 12 total runtime: 174656ms
+    output.2.log:I1222 02:40:13.973270 17867 logistic_regression.cpp:525] Worker 10 total runtime: 174393ms
+    output.3.log:I1222 02:40:11.323042 60332 logistic_regression.cpp:525] Worker 15 total runtime: 178738ms
+    output.3.log:I1222 02:40:11.326107 60334 logistic_regression.cpp:525] Worker 17 total runtime: 179143ms
+    output.3.log:I1222 02:40:11.332239 60337 logistic_regression.cpp:525] Worker 19 total runtime: 179132ms
+    output.3.log:I1222 02:40:11.337471 60335 logistic_regression.cpp:525] Worker 18 total runtime: 178977ms
+    output.3.log:I1222 02:40:11.348255 60333 logistic_regression.cpp:525] Worker 16 total runtime: 178790ms
+
+Accuracy : ~ 96% 
+
+    output.0.log:I1222 02:49:18.135480 119041 logistic_regression.cpp:550] Accuracy: 9498 out of 10000 94.98 percent
+    output.0.log:I1222 02:49:18.154139 119044 logistic_regression.cpp:550] Accuracy: 9721 out of 10000 97.21 percent
+    output.0.log:I1222 02:49:18.262950 119040 logistic_regression.cpp:550] Accuracy: 9496 out of 10000 94.96 percent
+    output.0.log:I1222 02:49:18.264993 119042 logistic_regression.cpp:550] Accuracy: 9491 out of 10000 94.91 percent
+    output.1.log:I1222 02:49:18.177938 118624 logistic_regression.cpp:550] Accuracy: 9718 out of 10000 97.18 percent
+    output.1.log:I1222 02:49:18.207623 118628 logistic_regression.cpp:550] Accuracy: 9728 out of 10000 97.28 percent
+    output.1.log:I1222 02:49:18.214084 118622 logistic_regression.cpp:550] Accuracy: 9710 out of 10000 97.1 percent
+    output.1.log:I1222 02:49:18.218031 118625 logistic_regression.cpp:550] Accuracy: 9659 out of 10000 96.59 percent
+    output.1.log:I1222 02:49:18.297188 118623 logistic_regression.cpp:550] Accuracy: 9711 out of 10000 97.11 percent
+    output.2.log:I1222 02:49:18.286911 19097 logistic_regression.cpp:550] Accuracy: 9633 out of 10000 96.33 percent
+    output.2.log:I1222 02:49:18.315251 19098 logistic_regression.cpp:550] Accuracy: 9688 out of 10000 96.88 percent
+    output.2.log:I1222 02:49:18.328666 19103 logistic_regression.cpp:550] Accuracy: 9549 out of 10000 95.49 percent
+    output.2.log:I1222 02:49:18.341791 19100 logistic_regression.cpp:550] Accuracy: 9710 out of 10000 97.1 percent
+    output.2.log:I1222 02:49:18.379766 19101 logistic_regression.cpp:550] Accuracy: 9627 out of 10000 96.27 percent
+    output.3.log:I1222 02:49:18.221297 60501 logistic_regression.cpp:550] Accuracy: 9681 out of 10000 96.81 percent
+    output.3.log:I1222 02:49:18.223582 60498 logistic_regression.cpp:550] Accuracy: 9673 out of 10000 96.73 percent
+    output.3.log:I1222 02:49:18.250890 60497 logistic_regression.cpp:550] Accuracy: 9720 out of 10000 97.2 percent
+    output.3.log:I1222 02:49:18.275480 60496 logistic_regression.cpp:550] Accuracy: 9625 out of 10000 96.25 percent
+    output.3.log:I1222 02:49:18.290329 60499 logistic_regression.cpp:550] Accuracy: 9742 out of 10000 97.42 percent
+
+#### KDD12 Logistic Regression, with hyperparameter analysis
+
 
 #### Workload update time Analysis
 ![](doc/job_time_vs_workload_update_rate.png)
+
+Observations:
+1. The overhead of the scheduler is not observable.
+2. The scheduler gives great improvements to Permanent Scheduler.
+3. The scheduler gives improvement to Transient Scheduler when the update_rate is small.
+4. The scheduler has negative effect to Transient Scheduler when the update_rate is large.
+
+The observation of the overhead is different to our expectation, after some investigation, we found that the waiting time is always much larger than the processing time (as shown in below plots). We believe that the time taken by communicating between mailbox is so large that hidden the overhead of the scheduler. Therefore, the overhead is not observable from the plots and it will need more in-depth analysis of the waiting time to discover the overhead.
+
+The scheduler needs to re-balance the workloads twice for a Transient Straggler, while only once for a Permanent Straggler. Therefore, when the update_rate is large, the scheduler converges slower and may even cause negative effect.
 
 #### Logistic Regression, With injected Permanent Straggler
 ![](doc/perm_straggler_no_scheduler.png)
@@ -197,13 +343,16 @@ The Matrix Factorization implementation is also based on the python implementati
 #### Logistic Regression, With injected Permanent Straggler and Scheduler
 ![](doc/perm_straggler_with_scheduler.png)
 
+By comparing the two plots above, the scheduler converged a 1000% permanent straggler in 30 iterations. The total processing time is reduced by 5 times after converged.
+
 #### Logistic Regression, With injected Transient Straggler
 ![](doc/tran_straggler_no_scheduler.png)
 
 #### Logistic Regression, With injected Transient Straggler and Scheduler
 ![](doc/tran_straggler_with_scheduler.png)
 
-#### Suport Vector Machine, With Scheduler and Without Scheduler
-
-#### Matrix Factorization, With Scheduler and Without Scheduler
-
+=======
+By comparing the two plots above, we can observe,
+1. The scheduler converged in 10 iterations after a 1000% transient straggler occurred.
+2. The total processing time is again reduced by 5 time after converged.
+3. The scheduler converged in 2 iterations after the straggler recovered.
