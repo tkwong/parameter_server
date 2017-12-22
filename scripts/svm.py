@@ -41,6 +41,7 @@ params = {
     "learning_rate": 2,
     #"with_injected_straggler": 0.05,
     #"with_injected_straggler_delay": 10,
+    "with_injected_straggler_delay_percent": 10,
     "get_updated_workload_rate": 1,
     "activate_scheduler": False,
     "activate_transient_straggler": False,

@@ -138,7 +138,6 @@ int main(int argc, char** argv)
     }
 
     // Load Data Samples
-    DataStore samples;
     std::string hdfs_master_host("");
     for (const auto& node : nodes) {
       if (FLAGS_hdfs_master_node_id == node.id) {
@@ -148,16 +147,7 @@ int main(int argc, char** argv)
     }
     CHECK(!hdfs_master_host.empty()) << "No HDFS Assigner Host defined";
 
-    lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
-        FLAGS_input, FLAGS_n_features,
-        lib::Parser<Sample, DataStore>::parse_libsvm, &samples, 0, nodes.size(), hdfs_master_host, FLAGS_hdfs_master_port, my_node->hostname
-    );
-
-    DataStore node_samples(samples.begin() , samples.end() - 10000 );
-    DataStore test_samples(samples.end() - 10000, samples.end());
-
-    LOG(INFO) << "Got " << node_samples.size() << " samples";
-
+    
     Engine* engine = new Engine(*my_node, nodes);
     engine->StartEverything();
 
@@ -174,7 +164,7 @@ int main(int argc, char** argv)
     task.SetTables({table_id});
 
     // Scheduling Task
-    task.SetScheduler([table_id, node_samples, test_samples](const Info& info)
+    task.SetScheduler([table_id](const Info& info)
     {
       // Tunning Parameters
       const double update_threshold   = 1.5; // min-max time diff in factor
@@ -204,7 +194,7 @@ int main(int argc, char** argv)
 
           // [STAT_TIME]<iteration>,<thread_id>,<process_time>
           for (int j = 0; j < info.thread_ids.size(); j++)
-              VLOG(2) << "[STAT_TIME] " << i << "," << info.thread_ids[j] << ","
+              LOG(INFO) << "[STAT_TIME] " << i << "," << info.thread_ids[j] << ","
                         << times[j];
 
 
@@ -252,7 +242,7 @@ int main(int argc, char** argv)
 
           // [STAT_WORKLOAD]<iteration>,<thread_id>,<batch_size>
           for (int j = 0; j < info.thread_ids.size(); j++)
-              VLOG(2) << "[STAT_WORK] " << i << "," << info.thread_ids[j] << ","
+              LOG(INFO) << "[STAT_WORK] " << i << "," << info.thread_ids[j] << ","
                         << workloads[j];
       }
 
@@ -260,18 +250,44 @@ int main(int argc, char** argv)
       return;
     });
 
-    task.SetLambda([table_id, node_samples, test_samples](const Info& info)
+    task.SetLambda([=](const Info& info)
     {
+        LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
+
+        KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
+        
+#ifdef BENCHMARK
+        Benchmark<> benchmark_load_time;
+        benchmark_load_time.start_measure();
+#endif
+        
+        LOG(INFO) << info.DebugString() << " : " << info.thread_ids.size();
+        // Load Data
+        DataStore node_samples;
+        lib::AbstractDataLoader<Sample, DataStore>::load<Parse>(
+            FLAGS_input, FLAGS_n_features,
+            lib::Parser<Sample, DataStore>::parse_libsvm, &node_samples, 0, info.thread_ids.size(), hdfs_master_host, FLAGS_hdfs_master_port, std::to_string(info.worker_id) /*my_node->hostname*/
+        );
+
+        //DataStore node_samples(samples.begin() , samples.end() - 10000 );
+        DataStore test_samples(node_samples.end() - 10000, node_samples.end());
+
+        //LOG(INFO) << "Got " << node_samples.size() << " samples";
+
+#ifdef BENCHMARK
+        benchmark_load_time.stop_measure();
+        LOG(INFO) << "Worker " << info.worker_id << " load time " << benchmark_load_time.total()/1000.0 << " ms";
+#endif
+        LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples";
+
+
+
 #ifdef BENCHMARK
         Benchmark<> benchmark_woker_time;
         benchmark_woker_time.start_measure();
 #endif
 
-        LOG(INFO) << "Worker id: " << info.worker_id << " table id: " << table_id;
 
-        KVClientTable<double> table = info.CreateKVClientTable<double>(table_id);
-
-        LOG(INFO) << "Worker " << info.worker_id << " got " << node_samples.size() << " samples";
 
         // Train
 #ifdef BENCHMARK       
@@ -341,7 +357,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
                   // [STAT_GET]<iteration>,<thread_id>,<wait_time>
                   benchmark_wait_time.stop_measure();
-                  VLOG(2) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
+                  LOG(INFO) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
 #endif
 
                 for(int i = 0; i < _keys.size() ; i++)
@@ -408,7 +424,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
                   // [STAT_GET]<iteration>,<thread_id>,<wait_time>
                   benchmark_wait_time.stop_measure();
-                  VLOG(2) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
+                  LOG(INFO) << "[STAT_WAIT] " << i << "," << info.thread_id <<  "," << benchmark_wait_time.last();
 #endif
 
               }
@@ -476,7 +492,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
               // [STAT_PROCESS]<iteration>,<thread_id>,<process_time>
               benchmark_iter_process_time.stop_measure();
-              VLOG(2) << "[STAT_PROC] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.last() << "," << b;
+              LOG(INFO) << "[STAT_PROC] " << i << "," << info.thread_id << "," << benchmark_iter_process_time.last() << "," << b;
 
 #endif
 
@@ -490,7 +506,7 @@ int main(int argc, char** argv)
             info.reportTime(benchmark_iter_process_time.last(batch_size));
 
             // [STAT_ITER]<iteration>,<thread_id>,<iteration_time>
-            VLOG(2) << "[STAT_ITER] " << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
+            LOG(INFO) << "[STAT_ITER] " << i << "," << info.thread_id << "," << benchmark_iteration.stop_measure();
 
             LOG_EVERY_N(INFO, (FLAGS_n_iters/10)) << "Worker " << info.worker_id  << " for " << i << " Iterations. "
                               << "iteration: "        << benchmark_iteration.mean()/1000. << " ms "
@@ -507,7 +523,7 @@ int main(int argc, char** argv)
 #ifdef BENCHMARK
         benchmark_woker_time.stop_measure();
         LOG(INFO) << "Worker " << info.worker_id << " total runtime: " << benchmark_woker_time.sum()/1000. << "ms";
-        VLOG(2) << "[STAT_TOTL] " << info.thread_id << "," << benchmark_woker_time.sum();
+        LOG(INFO) << "[STAT_TOTL] " << info.thread_id << "," << benchmark_woker_time.sum();
 #endif
         // Test
         int correct = 0;
@@ -533,6 +549,7 @@ int main(int argc, char** argv)
         }
         LOG(INFO) << "Accuracy: " << correct << " out of " << test_samples.size()
                   << " " << float(correct)/test_samples.size()*100 << " percent";
+        LOG(INFO) << "[STAT_ACCU] " << info.thread_id << "," << float(correct)/test_samples.size();
 
     });
 
