@@ -16,6 +16,7 @@
 #include "lib/labeled_sample.hpp"
 #include "lib/LUrlParser/LUrlParser.hpp"
 #include "lib/blockingconcurrentqueue.h"
+#include "lib/parser.hpp"
 
 namespace csci5570 {
 namespace lib {
@@ -25,7 +26,7 @@ public:
   using BatchT = std::vector<std::string>;
   ~AsyncReadBuffer() {
     thread_.join();
-    master_thread_.join();
+    // master_thread_.join();
   }
 
   /*
@@ -39,11 +40,11 @@ public:
    * @param batch_size  the size of each batch
    * @param batch_num   the max number of records in the buffer
    */
-  void init(const std::string &url, int task_id, int num_threads,
-            int batch_size, int batch_num) {
+  void init(const std::string &url, int task_id, int num_threads, std::string master_host, int master_port ,std::string worker_host,
+            int batch_size) {
     
     if (init_) return ; // return if already init
-    
+    batch_size_ = batch_size;
     // 1. initialize URL      
 
     // parse url into name hdfs_namenode and port
@@ -60,58 +61,52 @@ public:
     
     // 1. Spawn the HDFS block assigner thread on the master
         
-    // zmq::context_t zmq_context(1);
     zmq_context = std::shared_ptr<zmq::context_t> (new zmq::context_t(1));
-    // zmq::context_t zmq_context (1);
-    // auto zmq_context = std::make_shared<zmq::context_t>(1);
     int proc_id = getpid();
-    std::string master_host = "localhost";
-    int master_port = 19818;  // use a random port number to avoid collision with other users
-    std::string worker_host = "localhost";
-
-    master_thread_ = std::thread([this, master_port, hdfs_namenode_port, hdfs_namenode] {
-      HDFSBlockAssigner hdfs_block_assigner(hdfs_namenode, hdfs_namenode_port, zmq_context.get(), master_port);
-      hdfs_block_assigner.Serve();
-    });
     
     coordinator = std::shared_ptr<Coordinator> (new Coordinator(proc_id, worker_host, zmq_context.get(), master_host, master_port));
-    coordinator->serve();       
+    coordinator->serve();
     DLOG(INFO) << "Coordinator begins serving";
     
     // 2. spawn spreads to asynchronously load data
-    DLOG(INFO) << "Spawning Producer Thread(s)";
+    DLOG(INFO) << "Spawning Producer Thread(s)";        
     
     thread_ = std::thread( [this, proc_id, path, num_threads,task_id, worker_host, hdfs_namenode, hdfs_namenode_port, master_port, master_host] () {
       
- 
       DLOG(INFO) << "thread id:" << std::this_thread::get_id() << " started\n";
-                                    
+      
       infmt_ = std::shared_ptr<LineInputFormat> (new LineInputFormat(path, num_threads, task_id, coordinator.get(),
                                   worker_host, hdfs_namenode, hdfs_namenode_port));
-
       DLOG(INFO) << "Line input is well prepared";
-
+       
       // put the line into the batch.
       bool success = false;
       boost::string_ref record;
       try
       {
         while (true) {
-              success = infmt_->next(record); // is it thread safe?
+          success = infmt_->next(record); // is it thread safe?
           if (success) {
-              BatchT val({record.data()});
-              buffer_.enqueue(val);
-              LOG(INFO) << "Current Batch Count is " << batch_count_++;
+            std::string record_(record);
+            boost::char_separator<char> sep{"\n"};
+            boost::tokenizer<boost::char_separator<char> > tok{record_, sep};
+            for (const auto t : tok)
+            {
+              buffer_.enqueue(std::move(t));
+            }
+            DLOG(INFO) << "Buffer size : " << buffer_.size_approx();
+              
           } else {
               eof_ = true;
-              LOG(INFO) << "EOF Reached " ;
+              DLOG(INFO) << "EOF Reached " ;
               break;
           }
 
         }
 
       } catch (const std::exception& e) {
-         std::cout << e.what();
+         LOG(FATAL) << e.what();
+         
       }
       
       // Remember to notify master that the worker wants to exit
@@ -128,9 +123,19 @@ public:
   bool get_batch(BatchT *batch) {
     // store batch_size_ records in <batch> and return true if success
     // i.e. Consumer
-    if (eof_ && buffer_.size_approx() == 0) return false;
-    // return buffer_.wait_dequeue(*batch);
-    return buffer_.wait_dequeue_timed(*batch, std::chrono::milliseconds(5));
+    for (int i = 0 ; i < batch_size_ ; i++) 
+    {
+
+    if (eof_ && buffer_.size_approx() == 0)
+    {
+        LOG(INFO) << "EOF " << eof_ << " buffer_.size_approx()" << buffer_.size_approx();
+        return false;
+    }
+    std::string line;
+    buffer_.wait_dequeue(line);
+    batch->push_back(line);
+    }
+    return true;
   }
 
   int ask() {
@@ -155,19 +160,17 @@ protected:
   std::shared_ptr<LineInputFormat> infmt_;
   std::atomic<bool> eof_{false};
 
-
   // buffer
-  moodycamel::BlockingConcurrentQueue<BatchT> buffer_;
+  moodycamel::BlockingConcurrentQueue<std::string> buffer_;
   
   int batch_size_;      // the size of each batch
-  int batch_num_;       // max buffered batch number
-  int batch_count_ = 0; // unread buffered batch number
-  int end_ = 0;         // writer appends to the end_
-  int start_ = 0;       // reader reads from the start_
+  // int batch_num_;       // max buffered batch number
+  // int end_ = 0;         // writer appends to the end_
+  // int start_ = 0;       // reader reads from the start_
 
   // thread
   std::thread thread_;
-  std::thread master_thread_;
+  // std::thread master_thread_;
   // std::mutex mutex_;
   // std::condition_variable load_cv_;
   // std::condition_variable get_cv_;
@@ -178,50 +181,37 @@ private:
   
 };
 
-template <typename Sample> class AbstractAsyncDataLoader {
+template <typename Sample, typename Parse> 
+class AbstractAsyncDataLoader {
 public:
-  AbstractAsyncDataLoader(int batch_size, int num_features,
-                          AsyncReadBuffer *buffer)
-      : batch_size_(batch_size), n_features_(num_features), buffer_(buffer) {}
+  AbstractAsyncDataLoader(std::string url, int n_features, Parse parse, int batch_size,
+                          AsyncReadBuffer *buffer, int second_id, int num_threads, std::string hdfs_master_host, int hdfs_master_port ,std::string worker_host)
+      : batch_size_(batch_size), n_features_(n_features), buffer_(buffer), parse_(parse){
+            
+        // parse data in buffer
+        buffer_->init(url, second_id, num_threads, hdfs_master_host, hdfs_master_port, worker_host, batch_size_);        
+      }
 
   virtual const std::vector<Sample> &get_data() {
-    
-    // FIXME: no URL passing from arg? huh? 
-    std::string url ("hdfs://localhost:9000/datasets/classification/a9/");
-    
-    // FIXME: don't know the task_id yet
-    int task_id = 0;
-
-    // FIXME: don't know the number of threads yet
-    int num_threads = 10;
-    
-    // FIXME: don't know the max number of records in the buffer yet
-    int max_batch_num = 10000;
-    
-    // parse data in buffer
-    // FIXME: where is the parse function?
-    buffer_->init(url, task_id, num_threads, batch_size_, max_batch_num);
-    
-    // TODO: return a batch of samples
     std::vector<Sample> output; 
-    AsyncReadBuffer::BatchT batch ; 
-    while ( !buffer_->end_of_file() || buffer_->ask() > 0) { // only stop when end of file reached and buffer empty.
-      if ( buffer_->get_batch(&batch) ){
-        for(auto b : batch) { 
-          DLOG(INFO) << b;
-          output.push_back(b); 
-        }      
+    AsyncReadBuffer::BatchT batch ;   
+    if ( buffer_->get_batch(&batch) ){
+      for(auto b : batch) { 
+        Sample sample = parse_(b, n_features_);
+        output.push_back(sample);
       }
     }
     return output;
     
   }
-  std::vector<Key> get_keys() {
-    // return the keys of features of the current batch
-    return std::vector<Key> (index_set_.begin(), index_set_.end());
-  }
+  // std::vector<Key> get_keys() {
+  //   // return the keys of features of the current batch
+  //   return std::vector<Key> (index_set_.begin(), index_set_.end());
+  // }
 
-  inline bool is_empty() {}
+  inline bool is_empty() {
+    return (!buffer_->end_of_file() || buffer_->ask() > 0);
+  }
 
 protected:
   AsyncReadBuffer *buffer_;
@@ -229,7 +219,9 @@ protected:
   int n_features_;                 // number of features in the dataset
   std::vector<Sample> batch_data_; // a batch of data samples
   std::set<Key> index_set_;        // the keys of features for the current batch
+  Parse parse_;
 };
 
 } // namespace lib
 } // namespace csci5570
+
