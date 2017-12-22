@@ -229,17 +229,34 @@ This algorithm can handle both permanent and transient stragglers. This is becau
 #### Workload update time Analysis
 ![](doc/job_time_vs_workload_update_rate.png)
 
+Observations:
+1. The overhead of the scheduler is not observable.
+2. The scheduler gives great improvements to Permanent Scheduler.
+3. The scheduler gives improvement to Transient Scheduler when the update_rate is small.
+4. The scheduler has negative effect to Transient Scheduler when the update_rate is large.
+
+The observation of the overhead is different to our expectation, after some investigation, we found that the waiting time is always much larger than the processing time (as shown in below plots). We believe that the time taken by communicating between mailbox is so large that hidden the overhead of the scheduler. Therefore, the overhead is not observable from the plots and it will need more in-depth analysis of the waiting time to discover the overhead.
+
+The scheduler needs to re-balance the workloads twice for a Transient Straggler, while only once for a Permanent Straggler. Therefore, when the update_rate is large, the scheduler converges slower and may even cause negative effect.
+
 #### Logistic Regression, With injected Permanent Straggler
 ![](doc/perm_straggler_no_scheduler.png)
 
 #### Logistic Regression, With injected Permanent Straggler and Scheduler
 ![](doc/perm_straggler_with_scheduler.png)
 
+By comparing the two plots above, the scheduler converged a 1000% permanent straggler in 30 iterations. The total processing time is reduced by 5 times after converged.
+
 #### Logistic Regression, With injected Transient Straggler
 ![](doc/tran_straggler_no_scheduler.png)
 
 #### Logistic Regression, With injected Transient Straggler and Scheduler
 ![](doc/tran_straggler_with_scheduler.png)
+
+By comparing the two plots above, we can observe,
+1. The scheduler converged in 10 iterations after a 1000% transient straggler occurred.
+2. The total processing time is again reduced by 5 time after converged.
+3. The scheduler converged in 2 iterations after the straggler recovered.
 
 #### Suport Vector Machine, With Scheduler and Without Scheduler
 
