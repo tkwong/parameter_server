@@ -30,8 +30,9 @@ print "hostfile_path:%s, prog_path:%s" % (hostfile_path, prog_path)
 
 params = {
     "config_file":hostfile_path,
-    #"input": "hdfs://proj10:9000/datasets/classification/avazu-app-part/",
-    #"n_features": 1000000,
+    #"input": "hdfs://proj10:9000/datasets/ml/yahoomusic",
+    #"n_users": 1800000,
+    #"n_items": 136000000,
     "n_iters": 1,
     "batch_size": 10,
     "input": "hdfs://proj10:9000/datasets/ml/netflix/",
