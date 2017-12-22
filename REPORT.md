@@ -185,7 +185,45 @@ Execute from `scripts/mf.py`
 
 
 ### Technical Challenges
-<!-- TODO:  -->
+We have designed a scheduling algorithm for the scheduler.
+
+    double min_time = *std::min_element(times.begin(), times.end());
+    int workload_buffer = 0, count = 0;
+
+    std::multimap<double, uint32_t> time2thread;
+    std::map<uint32_t, int> thread2index;
+
+    for (int j = 0; j < info.thread_ids.size(); j++)
+    {
+        if (times[j] > min_time * update_threshold)
+        {
+            workload_buffer += round(workloads[j] * rebalance_workload);
+            workloads[j] = round(workloads[j] * (1 - rebalance_workload));
+        }
+        else count += 1;
+
+        time2thread.insert(std::make_pair(times[j], info.thread_ids[j]));
+        thread2index.insert(std::make_pair(info.thread_ids[j], j));
+    }
+
+    for (auto pair : time2thread)
+    {
+        workloads.at(thread2index.at(pair.second)) += round(workload_buffer / double(count));
+        workload_buffer -= round(workload_buffer / double(count));
+        count -= 1;
+        if (workload_buffer < 1) break;
+    }
+
+    info.workloadTable->Add(info.thread_ids, workloads);
+
+The algorithm works as follow,
+1. Find the smallest processing time as min_time.
+2. Find the workers that have processing time larger than min_time * update_threshold (we set this to 1.5).
+3. Take away some workloads from these workers, the number of workloads taking away is calculated by current workload * rebalance_workload (we set this to 0.2). Since number of workloads must be integer, we round the result.
+4. Distribute these workloads to the remaining workers in ascending order of their processing time, try to distribute evenly while make sure that the total workloads is unchanged.
+
+This algorithm can handle both permanent and transient stragglers. This is because when a permanent or transient straggler is found, its workloads will be reduced by the algorithm. It also works when the transient straggler is recovered, because the recovered worker will have the smallest processing time and caused others to be treated as stragglers. Therefore, the algorithm will give back some workloads to this worker.
+
 
 ### Evaluation on the performance
 
@@ -289,11 +327,23 @@ Accuracy : ~ 96%
 #### Workload update time Analysis
 ![](doc/job_time_vs_workload_update_rate.png)
 
+Observations:
+1. The overhead of the scheduler is not observable.
+2. The scheduler gives great improvements to Permanent Scheduler.
+3. The scheduler gives improvement to Transient Scheduler when the update_rate is small.
+4. The scheduler has negative effect to Transient Scheduler when the update_rate is large.
+
+The observation of the overhead is different to our expectation, after some investigation, we found that the waiting time is always much larger than the processing time (as shown in below plots). We believe that the time taken by communicating between mailbox is so large that hidden the overhead of the scheduler. Therefore, the overhead is not observable from the plots and it will need more in-depth analysis of the waiting time to discover the overhead.
+
+The scheduler needs to re-balance the workloads twice for a Transient Straggler, while only once for a Permanent Straggler. Therefore, when the update_rate is large, the scheduler converges slower and may even cause negative effect.
+
 #### Logistic Regression, With injected Permanent Straggler
 ![](doc/perm_straggler_no_scheduler.png)
 
 #### Logistic Regression, With injected Permanent Straggler and Scheduler
 ![](doc/perm_straggler_with_scheduler.png)
+
+By comparing the two plots above, the scheduler converged a 1000% permanent straggler in 30 iterations. The total processing time is reduced by 5 times after converged.
 
 #### Logistic Regression, With injected Transient Straggler
 ![](doc/tran_straggler_no_scheduler.png)
@@ -301,3 +351,8 @@ Accuracy : ~ 96%
 #### Logistic Regression, With injected Transient Straggler and Scheduler
 ![](doc/tran_straggler_with_scheduler.png)
 
+=======
+By comparing the two plots above, we can observe,
+1. The scheduler converged in 10 iterations after a 1000% transient straggler occurred.
+2. The total processing time is again reduced by 5 time after converged.
+3. The scheduler converged in 2 iterations after the straggler recovered.
